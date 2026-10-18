@@ -1,21 +1,19 @@
-
-@'
-# InsightAI — AI Data Analyst
+# InsightAI - AI Data Analyst
 
 InsightAI is a web-based data analysis platform that transforms raw CSV data into useful insights. It combines data profiling, data quality checks, data cleaning, interactive visualizations, business analytics, downloadable reports, and an AI-powered data assistant.
 
 ## Features
 
-- **CSV Upload and Analysis** — Upload CSV files and generate an analysis profile.
-- **Data Profiling** — Explore row counts, columns, data types, unique values, missing cells, and statistical summaries.
-- **Data Quality Checker** — Identify missing values, duplicate rows, outliers, and potential data quality issues.
-- **Data Cleaning** — Preview cleaning operations, apply supported changes, reset to the original dataset, and download cleaned data.
-- **Interactive Charts** — Visualize trends and relationships in uploaded datasets.
-- **Business Analytics** — Analyze sales, profit, profit margin, and product or regional performance when the required data is available.
-- **AI Data Assistant** — Ask natural-language questions about your dataset using the configured Groq API integration.
-- **Calculated Answers** — Get direct answers for supported data questions using backend calculations.
-- **Downloadable Reports** — Export analysis reports in JSON and PDF formats.
-- **Dataset Preview** — Inspect uploaded data before drawing conclusions.
+- **CSV Upload and Analysis:** Upload CSV files and generate an analysis profile.
+- **Data Profiling:** Explore row counts, columns, data types, unique values, missing cells, and statistical summaries.
+- **Data Quality Checker:** Identify missing values, duplicate rows, outliers, and potential data quality issues.
+- **Data Cleaning:** Preview cleaning operations, apply supported changes, reset to the original dataset, and download cleaned data.
+- **Interactive Charts:** Visualize trends and relationships in uploaded datasets.
+- **Business Analytics:** Analyze sales, profit, profit margin, and product or regional performance when the required data is available.
+- **AI Data Assistant:** Ask natural-language questions about your dataset using the configured Groq API integration.
+- **Calculated Answers:** Get direct answers for supported data questions using backend calculations.
+- **Downloadable Reports:** Export analysis reports in JSON and PDF formats.
+- **Dataset Preview:** Inspect uploaded data before drawing conclusions.
 
 ## Tech Stack
 
@@ -56,9 +54,7 @@ ai-data-analyst/
 
 ## Prerequisites
 
-Install the following before running the project:
-
-- Python 3.11 or another version compatible with the backend dependencies
+- Python 3.11 or a compatible Python version
 - Node.js and npm
 - A Groq API key for AI-assisted questions
 
@@ -73,22 +69,12 @@ cd insightai-data-analyst
 
 ### 2. Set up the backend
 
-Open a terminal in the project root:
+Open a terminal in the project root and run:
 
 ```powershell
 cd backend
 python -m venv venv
-```
-
-Activate the virtual environment on Windows PowerShell:
-
-```powershell
 .\venv\Scripts\Activate.ps1
-```
-
-Install the Python dependencies:
-
-```powershell
 pip install -r requirements.txt
 ```
 
@@ -96,9 +82,9 @@ pip install -r requirements.txt
 
 Create a file named `.env` inside the `backend` directory.
 
-Add your own Groq API key and the model configured for your backend:
+Add your own Groq API key and the model configured for the backend:
 
-```dotenv
+```env
 GROQ_API_KEY=your_groq_api_key_here
 GROQ_MODEL=openai/gpt-oss-20b
 ```
@@ -111,11 +97,11 @@ Replace the example key with your actual key. If your backend uses a different m
 
 Run this command from the `backend` directory:
 
-```powershell
+```bash
 uvicorn main:app --reload --port 8000
 ```
 
-The backend should be available at:
+Backend URLs:
 
 - API: http://127.0.0.1:8000
 - Interactive API documentation: http://127.0.0.1:8000/docs
@@ -125,7 +111,7 @@ Keep this terminal running.
 
 ### 5. Set up the frontend
 
-Open a **second terminal** and navigate to the project root, then run:
+Open a second terminal in the project root and run:
 
 ```powershell
 cd frontend
@@ -133,7 +119,7 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite in the terminal, usually `http://localhost:5173`.
+Open the local URL printed by Vite in the terminal, usually http://localhost:5173.
 
 If Vite selects a different port, use the URL it displays. If the frontend cannot reach the backend, verify the API URL and ensure the backend's CORS configuration allows the frontend's current origin.
 
@@ -152,8 +138,6 @@ Sample CSV datasets are available in the `sample_data/` directory.
 
 ## API Endpoints
 
-The backend includes the following API endpoints:
-
 | Method | Endpoint | Purpose |
 |---|---|---|
 | GET | `/` | API status |
@@ -171,7 +155,7 @@ Visit `/docs` while the backend is running to inspect request schemas, parameter
 
 ## Important Notes
 
-- Uploaded datasets are held in backend memory. Restarting the backend can clear the loaded datasets.
+- Uploaded datasets are held in backend memory. Restarting the backend can clear loaded datasets.
 - AI-generated responses can contain inaccuracies. Verify important claims against the underlying data.
 - Do not upload confidential business information or personally identifiable data to a public deployment.
 - Keep API credentials private and out of source control.
@@ -190,6 +174,5 @@ Visit `/docs` while the backend is running to inspect request schemas, parameter
 
 **Ankit Kumar**
 
-- GitHub: [ankit123-stack](https://github.com/ankit123-stack)
-- Project Repository: [InsightAI — AI Data Analyst](https://github.com/ankit123-stack/insightai-data-analyst)
-'@ | Set-Content -Encoding utf8 .\README.md
+- GitHub: https://github.com/ankit123-stack
+- Project Repository: https://github.com/ankit123-stack/insightai-data-analyst
