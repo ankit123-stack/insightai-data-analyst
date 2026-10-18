@@ -1,0 +1,31 @@
+OrderDate,Region,Category,Product,Sales,Quantity,Profit,CustomerRating
+2026-02-01,North,Electronics,Laptop,1850,2,320,5
+2026-02-02,South,Furniture,Office Chair,720,3,150,4
+2026-02-03,East,Electronics,Monitor,950,2,180,4
+2026-02-04,West,Accessories,Keyboard,240,5,70,5
+2026-02-05,North,Electronics,Headphones,450,4,110,4
+2026-02-06,South,Furniture,Desk,1100,2,230,5
+2026-02-07,East,Accessories,Mouse,180,6,55,4
+2026-02-08,West,Electronics,Laptop,2100,2,390,5
+2026-02-09,North,Furniture,Bookshelf,680,2,125,3
+2026-02-10,South,Electronics,Tablet,890,3,170,4
+2026-02-11,East,Accessories,Keyboard,260,4,75,5
+2026-02-12,West,Furniture,Office Chair,760,3,165,4
+2026-02-13,North,Electronics,Monitor,1020,2,195,4
+2026-02-14,South,Accessories,Mouse,210,5,60,3
+2026-02-15,East,Electronics,Headphones,520,4,130,5
+2026-02-16,West,Furniture,Desk,1250,2,270,5
+2026-02-17,North,Electronics,Laptop,1950,2,350,4
+2026-02-18,South,Accessories,Keyboard,230,5,68,4
+2026-02-19,East,Furniture,Bookshelf,640,2,115,3
+2026-02-20,West,Electronics,Tablet,940,3,185,4
+2026-02-21,North,Accessories,Mouse,190,6,58,5
+2026-02-22,South,Electronics,Monitor,980,2,185,4
+2026-02-23,East,Furniture,Office Chair,790,3,170,4
+2026-02-24,West,Electronics,Headphones,560,4,140,5
+2026-02-25,North,Furniture,Desk,1180,2,250,5
+2026-02-26,South,Electronics,Laptop,2200,2,410,5
+2026-02-27,East,Accessories,Keyboard,250,5,72,4
+2026-02-28,West,Furniture,Bookshelf,710,2,130,3
+2026-03-01,North,Electronics,Tablet,910,3,175,4
+2026-03-02,South,Accessories,Mouse,200,5,62,4
