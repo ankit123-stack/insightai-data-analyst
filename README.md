@@ -176,3 +176,10 @@ Visit `/docs` while the backend is running to inspect request schemas, parameter
 
 - GitHub: https://github.com/ankit123-stack
 - Project Repository: https://github.com/ankit123-stack/insightai-data-analyst
+
+
+## Screenshots
+
+### InsightAI Dashboard
+
+![InsightAI Dashboard](screenshots/dashboard.png)
