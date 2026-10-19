@@ -76,7 +76,7 @@ Open a terminal in the project root and run:
 ```powershell
 cd backend
 python -m venv venv
-.venvScriptsActivate.ps1
+.\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
@@ -91,7 +91,7 @@ GROQ_MODEL=openai/gpt-oss-20b
 
 Replace the example key with your own Groq API key. If your backend uses a different model, use the model configured in your application.
 
-**Security:** Never commit your real API key or `.env` file to GitHub. The repository's `.gitignore` should exclude these files.
+**Security:** Never commit your real API key or `.env` file to GitHub. Ensure your `.gitignore` excludes these files.
 
 ### 4. Start the Backend
 
@@ -182,5 +182,3 @@ Visit `/docs` while the backend is running to inspect request schemas, parameter
 ### InsightAI Dashboard
 
 ![InsightAI Dashboard](screenshots/dashboard.png)
-
-
