@@ -48,6 +48,8 @@ ai-data-analyst/
 ├── sample_data/
 │   ├── customer_orders.csv
 │   └── sales.csv
+├── screenshots/
+│   └── dashboard.png
 ├── .gitignore
 └── README.md
 ```
@@ -60,14 +62,14 @@ ai-data-analyst/
 
 ## Installation and Setup
 
-### 1. Clone the repository
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/ankit123-stack/insightai-data-analyst.git
 cd insightai-data-analyst
 ```
 
-### 2. Set up the backend
+### 2. Set Up the Backend
 
 Open a terminal in the project root and run:
 
@@ -78,22 +80,20 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-### 3. Configure environment variables
+### 3. Configure Environment Variables
 
-Create a file named `.env` inside the `backend` directory.
-
-Add your own Groq API key and the model configured for the backend:
+Create a file named `.env` inside the `backend` directory and add:
 
 ```env
 GROQ_API_KEY=your_groq_api_key_here
 GROQ_MODEL=openai/gpt-oss-20b
 ```
 
-Replace the example key with your actual key. If your backend uses a different model, use the model configured in your application.
+Replace the example key with your own Groq API key. If your backend uses a different model, use the model configured in your application.
 
-**Security:** Never commit your real API key or `.env` file to GitHub. The repository's `.gitignore` excludes these files.
+**Security:** Never commit your real API key or `.env` file to GitHub. The repository's `.gitignore` should exclude these files.
 
-### 4. Start the backend
+### 4. Start the Backend
 
 Run this command from the `backend` directory:
 
@@ -109,7 +109,7 @@ Backend URLs:
 
 Keep this terminal running.
 
-### 5. Set up the frontend
+### 5. Set Up the Frontend
 
 Open a second terminal in the project root and run:
 
@@ -119,7 +119,7 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite in the terminal, usually http://localhost:5173.
+Open the local URL printed by Vite in the terminal, usually `http://localhost:5173`.
 
 If Vite selects a different port, use the URL it displays. If the frontend cannot reach the backend, verify the API URL and ensure the backend's CORS configuration allows the frontend's current origin.
 
@@ -168,7 +168,7 @@ Visit `/docs` while the backend is running to inspect request schemas, parameter
 - Improve data validation and error handling.
 - Strengthen validation of AI-generated insights.
 - Add persistent dataset storage where needed.
-- Add screenshots and a live demo link.
+- Add a live demo link.
 
 ## Author
 
@@ -176,7 +176,6 @@ Visit `/docs` while the backend is running to inspect request schemas, parameter
 
 - GitHub: https://github.com/ankit123-stack
 - Project Repository: https://github.com/ankit123-stack/insightai-data-analyst
-
 
 ## Screenshots
 
