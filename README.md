@@ -76,7 +76,7 @@ Open a terminal in the project root and run:
 ```powershell
 cd backend
 python -m venv venv
-.\venv\Scripts\Activate.ps1
+.venvScriptsActivate.ps1
 pip install -r requirements.txt
 ```
 
@@ -182,4 +182,5 @@ Visit `/docs` while the backend is running to inspect request schemas, parameter
 ### InsightAI Dashboard
 
 ![InsightAI Dashboard](screenshots/dashboard.png)
+
 
