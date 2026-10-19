@@ -17,7 +17,7 @@ InsightAI is a web-based data analysis platform that transforms raw CSV data int
 
 ## Tech Stack
 
-| Area | Technologies |
+| **Area** | **Technologies** |
 |---|---|
 | Frontend | React, JavaScript, Vite, CSS |
 | Backend | Python, FastAPI, Uvicorn |
@@ -89,7 +89,7 @@ GROQ_API_KEY=your_groq_api_key_here
 GROQ_MODEL=openai/gpt-oss-20b
 ```
 
-Replace the example key with your own Groq API key. If your backend uses a different model, use the model configured in your application.
+Replace the example API key with your own Groq API key. Ensure that `GROQ_MODEL` matches the model configured in your application.
 
 **Security:** Never commit your real API key or `.env` file to GitHub. Ensure your `.gitignore` excludes these files.
 
@@ -97,15 +97,15 @@ Replace the example key with your own Groq API key. If your backend uses a diffe
 
 Run this command from the `backend` directory:
 
-```bash
+```powershell
 uvicorn main:app --reload --port 8000
 ```
 
 Backend URLs:
 
-- API: http://127.0.0.1:8000
-- Interactive API documentation: http://127.0.0.1:8000/docs
-- Health check: http://127.0.0.1:8000/api/health
+- API: [http://127.0.0.1:8000](http://127.0.0.1:8000)
+- Interactive API documentation: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- Health check: [http://127.0.0.1:8000/api/health](http://127.0.0.1:8000/api/health)
 
 Keep this terminal running.
 
@@ -138,7 +138,7 @@ Sample CSV datasets are available in the `sample_data/` directory.
 
 ## API Endpoints
 
-| Method | Endpoint | Purpose |
+| **Method** | **Endpoint** | **Purpose** |
 |---|---|---|
 | GET | `/` | API status |
 | GET | `/api/health` | Health check |
@@ -174,8 +174,8 @@ Visit `/docs` while the backend is running to inspect request schemas, parameter
 
 **Ankit Kumar**
 
-- GitHub: https://github.com/ankit123-stack
-- Project Repository: https://github.com/ankit123-stack/insightai-data-analyst
+- GitHub: [https://github.com/ankit123-stack](https://github.com/ankit123-stack)
+- Project Repository: [https://github.com/ankit123-stack/insightai-data-analyst](https://github.com/ankit123-stack/insightai-data-analyst)
 
 ## Screenshots
 
