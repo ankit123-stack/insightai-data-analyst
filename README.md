@@ -182,3 +182,4 @@ Visit `/docs` while the backend is running to inspect request schemas, parameter
 ### InsightAI Dashboard
 
 ![InsightAI Dashboard](screenshots/dashboard.png)
+
