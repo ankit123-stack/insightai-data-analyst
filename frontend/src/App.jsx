@@ -29,6 +29,10 @@ import {
   Bar,
   LineChart,
   Line,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
   XAxis,
   YAxis,
   Tooltip,
@@ -41,7 +45,7 @@ import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import './cleaning.css'
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8002'
 
 // --------------------------------------------------
 // HELPERS
@@ -361,13 +365,112 @@ function downloadBlob(blob, filename) {
 // METRIC
 // --------------------------------------------------
 
-function Metric({ icon, label, value, detail }) {
+function Metric({
+  icon,
+  label,
+  value,
+  detail,
+  polished = false,
+  qualityStatus,
+  primary = false
+}) {
+  const cardStyle = polished
+    ? {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        minHeight: '172px',
+        padding: '20px',
+        borderColor: primary
+          ? '#686bef'
+          : qualityStatus === 'good'
+            ? '#d9eee5'
+            : '#e9ecf4',
+        background: primary
+          ? 'linear-gradient(145deg, #f1f1ff 0%, #ffffff 78%)'
+          : '#fff',
+        boxShadow: primary
+          ? '0 10px 28px rgba(104, 107, 239, 0.12)'
+          : '0 8px 24px rgba(31, 42, 75, 0.05)'
+      }
+    : undefined
+
+  const iconStyle = polished
+    ? {
+        width: '40px',
+        height: '40px',
+        marginBottom: '18px',
+        background: primary
+          ? '#686bef'
+          : (
+          qualityStatus === 'good'
+            ? '#eaf8f1'
+            : qualityStatus === 'warning'
+              ? '#fff5e8'
+              : '#efefff'
+          ),
+        color: primary
+          ? '#fff'
+          : (
+          qualityStatus === 'good'
+            ? '#29976b'
+            : qualityStatus === 'warning'
+              ? '#c47a1b'
+              : '#686bef'
+          )
+      }
+    : undefined
+
   return (
-    <div className="metric">
-      <div className="metric-icon">{icon}</div>
-      <small>{label}</small>
-      <strong>{value}</strong>
-      <span>{detail}</span>
+    <div className="metric" style={cardStyle}>
+      <div className="metric-icon" style={iconStyle}>{icon}</div>
+      <small
+        style={
+          polished
+            ? {
+                fontSize: '11px',
+                fontWeight: 600,
+                letterSpacing: '0.2px'
+              }
+            : undefined
+        }
+      >
+        {label}
+      </small>
+      <strong
+        style={
+          polished
+            ? {
+                margin: '6px 0 4px',
+                fontSize: 'clamp(25px, 2.2vw, 32px)',
+                lineHeight: 1.15,
+                letterSpacing: '-0.7px',
+                color: primary ? '#3f42bd' : '#20263a'
+              }
+            : undefined
+        }
+      >
+        {value}
+      </strong>
+      <span
+        style={
+          polished
+            ? {
+                marginTop: 'auto',
+                paddingTop: '8px',
+                lineHeight: 1.45,
+                color:
+                  qualityStatus === 'good'
+                    ? '#29976b'
+                    : qualityStatus === 'warning'
+                      ? '#b7791f'
+                      : undefined
+              }
+            : undefined
+        }
+      >
+        {detail}
+      </span>
     </div>
   )
 }
@@ -415,7 +518,7 @@ function buildBusinessInsights(analytics, profile) {
       text: `${business.lowest_product.name} recorded ${formatNumber(
         business.lowest_product.sales
       )} in sales. Review demand, pricing, and customer preferences.`,
-      type: 'neutral'
+      type: 'attention'
     })
   }
 
@@ -452,17 +555,6 @@ function buildBusinessInsights(analytics, profile) {
         averageSales
       )} per record.`,
       type: 'positive'
-    })
-  }
-
-  if (business.profit_margin !== undefined) {
-    insights.push({
-      icon: <ShoppingCart size={18} />,
-      title: 'Profit margin',
-      text: `The overall profit margin is ${formatNumber(
-        business.profit_margin
-      )}%.`,
-      type: 'neutral'
     })
   }
 
@@ -511,6 +603,19 @@ function buildBusinessInsights(analytics, profile) {
     })
   }
 
+  insights.push({
+    icon: <ShoppingCart size={18} />,
+    title: 'Profit margin',
+    text:
+      business.profit_margin === undefined ||
+      business.profit_margin === null
+        ? 'Profit margin is unavailable because profit/cost information is not available.'
+        : `The overall profit margin is ${formatNumber(
+            business.profit_margin
+          )}%.`,
+    type: 'neutral'
+  })
+
   return insights
 }
 
@@ -522,10 +627,23 @@ export default function App() {
   const [profile, setProfile] = useState(null)
   const [chart, setChart] = useState(null)
   const [analytics, setAnalytics] = useState(null)
+  const [interactiveChartType, setInteractiveChartType] =
+    useState('bar')
+  const [interactiveDimension, setInteractiveDimension] =
+    useState('region')
   const [fileName, setFileName] = useState('')
+  const [uploadedDatasets, setUploadedDatasets] = useState([])
+  const [selectedCompareDataset1, setSelectedCompareDataset1] =
+    useState('')
+  const [selectedCompareDataset2, setSelectedCompareDataset2] =
+    useState('')
+  const [comparison, setComparison] = useState(null)
+  const [comparisonBusy, setComparisonBusy] = useState(false)
+  const [comparisonError, setComparisonError] = useState('')
   const [question, setQuestion] = useState('')
   const [answers, setAnswers] = useState([])
   const [busy, setBusy] = useState(false)
+  const [excelDownloadBusy, setExcelDownloadBusy] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [cleaningBusy, setCleaningBusy] = useState(false)
@@ -539,19 +657,20 @@ export default function App() {
     outliers: {}
   })
 
-  // ------------------------------------------------
-  // UPLOAD CSV AND LOAD ANALYTICS
+ // ------------------------------------------------
+  // UPLOAD CSV / EXCEL AND LOAD ANALYTICS
   // ------------------------------------------------
 
   async function upload(file) {
     if (!file) return
 
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      setError('Please select a CSV file.')
+    const fileName = file.name.toLowerCase()
+
+    if (!fileName.endsWith('.csv') && !fileName.endsWith('.xlsx')) {
+      setError('Please select a CSV (.csv) or Excel (.xlsx) file.')
       setSuccess('')
       return
     }
-
     if (file.size > 15 * 1024 * 1024) {
       setError('File size must be less than 15 MB.')
       setSuccess('')
@@ -591,9 +710,28 @@ export default function App() {
 
       if (!response.ok) {
         throw new Error(
-          data.detail || 'CSV upload failed.'
+          data.detail || 'File upload failed.'
         )
       }
+
+      const uploadedDataset = {
+        dataset_id: data.dataset_id,
+        filename: data.filename || file.name
+      }
+      setUploadedDatasets((previous) => [
+        ...previous.filter(
+          (dataset) => dataset.dataset_id !== data.dataset_id
+        ),
+        uploadedDataset
+      ])
+      setSelectedCompareDataset1(
+        (selected) => selected || data.dataset_id
+      )
+      setSelectedCompareDataset2((selected) =>
+        uploadedDatasets.length < 2
+          ? data.dataset_id
+          : selected || data.dataset_id
+      )
 
       const normalizedProfile =
         normalizeProfileData(data)
@@ -720,7 +858,7 @@ export default function App() {
         })
       } else {
         setError(
-          `CSV uploaded, but analytics could not load: ${
+          `File uploaded, but analytics could not load: ${
             analyticsResult.reason?.message ||
             'Unknown error'
           }`
@@ -731,7 +869,7 @@ export default function App() {
         setError((previous) =>
           previous
             ? `${previous} Charts could not load.`
-            : 'CSV uploaded, but charts could not load.'
+            : 'File uploaded, but charts could not load.'
         )
       }
 
@@ -742,7 +880,7 @@ export default function App() {
           'fulfilled'
       ) {
         setSuccess(
-          'CSV uploaded and analysis completed successfully.'
+          'File uploaded and analysis completed successfully.'
         )
       }
     } catch (err) {
@@ -751,6 +889,41 @@ export default function App() {
       )
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function compareUploadedDatasets(event) {
+    event.preventDefault()
+    setComparisonError('')
+    setComparison(null)
+    setComparisonBusy(true)
+
+    try {
+      const response = await fetch(`${API}/api/compare`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          dataset_1_id: selectedCompareDataset1,
+          dataset_2_id: selectedCompareDataset2
+        })
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail || 'Could not compare the selected datasets.'
+        )
+      }
+
+      setComparison(data)
+    } catch (err) {
+      setComparisonError(
+        err.message || 'Comparison failed. Please try again.'
+      )
+    } finally {
+      setComparisonBusy(false)
     }
   }
 
@@ -1033,6 +1206,39 @@ export default function App() {
     analytics?.numeric_summary || {}
   )
 
+  const dimensionLabels = {
+    region: 'Sales by Region',
+    category: 'Sales by Category',
+    product: 'Sales by Product'
+  }
+
+  const interactiveChartData = (() => {
+    const businessInsights = analytics?.business_insights || {}
+    const performanceData =
+      interactiveDimension === 'region'
+        ? businessInsights.region_performance
+        : interactiveDimension === 'product'
+          ? businessInsights.product_performance
+          : null
+
+    if (performanceData?.length) {
+      return performanceData.map((item) => ({
+        category: item.name,
+        value: Number(item.sales) || 0
+      }))
+    }
+
+    const chart = analytics?.charts?.find((item) => {
+      const title = String(item.title || '').toLowerCase()
+      return (
+        title.includes(interactiveDimension) &&
+        /sales|revenue|turnover/i.test(title)
+      )
+    })
+
+    return chart?.data || []
+  })()
+
   const suggestions = profile
     ? [
         'How many rows are in this dataset?',
@@ -1091,7 +1297,7 @@ export default function App() {
   function downloadReport() {
     if (!profile) {
       setError(
-        'Upload a CSV before downloading a report.'
+        'Upload a CSV or Excel file before downloading a report.'
       )
       return
     }
@@ -1114,10 +1320,7 @@ export default function App() {
       )
 
       const reportName =
-        fileName.replace(
-          /\.csv$/i,
-          ''
-        ) || 'analysis'
+  fileName.replace(/\.(csv|xlsx)$/i, '') || 'analysis'
 
       downloadBlob(
         blob,
@@ -1148,7 +1351,7 @@ export default function App() {
   function downloadPdfReport() {
     if (!profile) {
       setError(
-        'Upload a CSV before downloading a report.'
+        'Upload a CSV or Excel file before downloading a report.'
       )
       return
     }
@@ -1168,9 +1371,9 @@ export default function App() {
 
       const reportName =
         fileName.replace(
-          /\.csv$/i,
-          ''
-        ) || 'analysis'
+  /\.(csv|xlsx)$/i,
+  ''
+) || 'analysis'
 
       const numericSummary =
         analytics?.numeric_summary || {}
@@ -1376,10 +1579,10 @@ export default function App() {
       doc.setFontSize(9)
 
       doc.text(
-        `Dataset: ${reportName}.csv`,
-        margin,
-        35
-      )
+  `Dataset: ${fileName || reportName}`,
+  margin,
+  35
+)
 
       y = 53
 
@@ -1937,6 +2140,53 @@ export default function App() {
     }
   }
 
+  async function downloadExcelReport() {
+    if (!profile?.dataset_id || excelDownloadBusy) {
+      if (!profile?.dataset_id) {
+        setError(
+          'Upload a CSV or Excel file before downloading a report.'
+        )
+      }
+      return
+    }
+
+    setExcelDownloadBusy(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const datasetId = profile.dataset_id
+      const response = await fetch(
+        `${API}/api/report/excel/${datasetId}`
+      )
+
+      if (!response.ok) {
+        let message = 'Excel report download failed.'
+        try {
+          const result = await response.json()
+          message = result.detail || message
+        } catch {
+          // Keep the download error message when the response is not JSON.
+        }
+        throw new Error(message)
+      }
+
+      const blob = await response.blob()
+      downloadBlob(
+        blob,
+        `InsightAI_Report_${datasetId}.xlsx`
+      )
+      setSuccess('Excel report downloaded successfully.')
+    } catch (err) {
+      console.error('Excel report download failed:', err)
+      setError(
+        err.message || 'Could not download the Excel report.'
+      )
+    } finally {
+      setExcelDownloadBusy(false)
+    }
+  }
+
   // ------------------------------------------------
   // RESET DASHBOARD
   // ------------------------------------------------
@@ -1965,6 +2215,9 @@ export default function App() {
 
   const business =
     analytics?.business_insights || {}
+
+  const advancedInsights =
+    analytics?.advanced_insights || {}
 
   const businessInsights =
     buildBusinessInsights(
@@ -2006,6 +2259,17 @@ export default function App() {
           <MessageSquare size={18} />
           Ask your data
         </div>
+
+        {uploadedDatasets.length > 0 && (
+          <a
+            className="nav"
+            href="#data-comparison"
+            style={{ textDecoration: 'none' }}
+          >
+            <Rows3 size={18} />
+            Data Comparison
+          </a>
+        )}
 
         <div className="side-bottom">
           <span />
@@ -2059,6 +2323,18 @@ export default function App() {
                   />
                   Download PDF
                 </button>
+
+                <button
+                  className="secondary-btn"
+                  onClick={downloadExcelReport}
+                  disabled={busy || excelDownloadBusy}
+                  title="Download the Excel analysis report"
+                >
+                  <FileSpreadsheet size={17} />
+                  {excelDownloadBusy
+                    ? 'Downloading Excel…'
+                    : 'Download Excel'}
+                </button>
               </>
             )}
 
@@ -2067,11 +2343,11 @@ export default function App() {
 
               {busy
                 ? 'Working…'
-                : 'Upload CSV'}
+                : 'Upload CSV/Excel'}
 
               <input
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 disabled={busy}
                 onChange={(e) => {
                   upload(
@@ -2124,7 +2400,7 @@ export default function App() {
             </h2>
 
             <p>
-              Upload a CSV to profile
+              Upload a CSV or Excel file to profile
               your dataset, inspect
               data quality, generate
               charts, and ask
@@ -2139,8 +2415,8 @@ export default function App() {
 
               <b>
                 {busy
-                  ? 'Uploading and analyzing your CSV…'
-                  : 'Choose a CSV file to get started'}
+                  ? 'Uploading and analyzing your CSV/Excel…'
+                  : 'Choose a CSV or Excel file to get started'}
               </b>
 
               <span>
@@ -2150,7 +2426,7 @@ export default function App() {
 
               <input
                 type="file"
-                accept=".csv,text/csv"
+               accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 disabled={busy}
                 onChange={(e) => {
                   upload(
@@ -2167,7 +2443,7 @@ export default function App() {
                 size={15}
               />
 
-              CSV analysis runs on
+              CSV and Excel analysis runs on
               your local backend. AI
               questions send relevant
               dataset context to Groq.
@@ -2188,7 +2464,7 @@ export default function App() {
                 <b>{fileName}</b>
 
                 <small>
-                  CSV dataset · analysis
+                  CSV or Excel dataset · analysis
                   complete
                 </small>
               </div>
@@ -2211,12 +2487,33 @@ export default function App() {
               </button>
             </div>
 
+            <section className="panel">
+              <div className="panel-head" style={{ marginBottom: 0 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div className="eyebrow">DATASET OVERVIEW</div>
+                  <h3>Dataset Analysis Overview</h3>
+                  <p
+                    className="muted"
+                    style={{ marginBottom: '4px' }}
+                  >
+                    {fileName}
+                  </p>
+                  <p className="muted" style={{ margin: 0 }}>
+                    Review key performance metrics, data quality, and business
+                    insights.
+                  </p>
+                </div>
+                <span className="tag">Analysis Complete</span>
+              </div>
+            </section>
+
             {/* DATA QUALITY METRICS */}
 
             <section className="metrics">
               <Metric
                 icon={<Rows3 />}
                 label="Total rows"
+                polished
                 value={formatNumber(
                   profile.rows
                 )}
@@ -2226,6 +2523,7 @@ export default function App() {
               <Metric
                 icon={<Columns3 />}
                 label="Total columns"
+                polished
                 value={formatNumber(
                   profile.columns_count
                 )}
@@ -2234,9 +2532,17 @@ export default function App() {
 
               <Metric
                 icon={
-                  <AlertTriangle />
+                  profile.missing_cells === 0
+                    ? <CheckCircle2 />
+                    : <AlertTriangle />
                 }
                 label="Missing cells"
+                polished
+                qualityStatus={
+                  profile.missing_cells === 0
+                    ? 'good'
+                    : 'warning'
+                }
                 value={formatNumber(
                   profile.missing_cells
                 )}
@@ -2248,8 +2554,18 @@ export default function App() {
               />
 
               <Metric
-                icon={<RefreshCw />}
+                icon={
+                  profile.duplicate_rows === 0
+                    ? <CheckCircle2 />
+                    : <RefreshCw />
+                }
                 label="Duplicate rows"
+                polished
+                qualityStatus={
+                  profile.duplicate_rows === 0
+                    ? 'good'
+                    : 'warning'
+                }
                 value={formatNumber(
                   profile.duplicate_rows
                 )}
@@ -2356,7 +2672,13 @@ export default function App() {
                 <div className="cleaning-column-list">
                   {profile.columns.map((column) => {
                     const numeric =
-                      /int|float|double|number/i.test(column.dtype)
+  /int|float|double|number/i.test(column.dtype)
+
+const datetime =
+  /datetime|date|time/i.test(column.dtype)
+
+const canUseMeanMedian =
+  numeric || datetime
 
                     return (
                       <div className="cleaning-column" key={column.name}>
@@ -2383,12 +2705,13 @@ export default function App() {
                             }
                           >
                             <option value="keep">Keep</option>
-                            <option value="mean" disabled={!numeric}>
-                              Fill with mean
-                            </option>
-                            <option value="median" disabled={!numeric}>
-                              Fill with median
-                            </option>
+                            <option value="mean" disabled={!canUseMeanMedian}>
+  Fill with mean
+</option>
+
+<option value="median" disabled={!canUseMeanMedian}>
+  Fill with median
+</option>
                             <option value="mode">Fill with mode</option>
                             <option value="constant">Fill with value</option>
                             <option value="drop_rows">Drop rows</option>
@@ -2547,9 +2870,21 @@ export default function App() {
                           <tr key={index}>
                             {cleaningPreview.profile.column_profiles.map(
                               (column) => (
-                                <td key={column.name}>
-                                  {row[column.name] ?? '—'}
-                                </td>
+                               <td key={column.name}>
+  {row[column.name] == null ||
+row[column.name] === '' ||
+row[column.name] === 'NaT' ||
+row[column.name] === 'NaN'
+  ? '—'
+  : /datetime|date|time/i.test(column.dtype)
+    ? typeof row[column.name] === 'number' &&
+      Math.abs(row[column.name]) > 100000000000
+      ? new Date(
+          row[column.name] / 1000000
+        ).toISOString().slice(0, 10)
+      : String(row[column.name]).slice(0, 10)
+    : row[column.name]}
+</td>
                               )
                             )}
                           </tr>
@@ -2590,6 +2925,8 @@ export default function App() {
                         <DollarSign />
                       }
                       label="Total Sales"
+                      polished
+                      primary
                       value={formatNumber(
                         kpis.total_sales
                       )}
@@ -2618,6 +2955,7 @@ export default function App() {
                         <ShoppingCart />
                       }
                       label="Average Sales"
+                      polished
                       value={formatNumber(
                         kpis.average_sales
                       )}
@@ -2632,6 +2970,7 @@ export default function App() {
                         <Package />
                       }
                       label="Average Quantity"
+                      polished
                       value={formatNumber(
                         kpis.average_quantity
                       )}
@@ -2639,19 +2978,21 @@ export default function App() {
                     />
                   )}
 
-                  {business.profit_margin !==
-                    undefined && (
-                    <Metric
-                      icon={
-                        <TrendingUp />
-                      }
-                      label="Profit Margin"
-                      value={`${formatNumber(
-                        business.profit_margin
-                      )}%`}
-                      detail="Profit as a share of sales"
-                    />
-                  )}
+                  <Metric
+                    icon={
+                      <TrendingUp />
+                    }
+                    label="Profit Margin"
+                    polished
+                    value={
+                      business.profit_margin == null
+                        ? '—%'
+                        : `${formatNumber(
+                            business.profit_margin
+                          )}%`
+                    }
+                    detail="Profit as a share of sales"
+                  />
                 </div>
               ) : (
                 <p className="muted">
@@ -2686,41 +3027,378 @@ export default function App() {
                   </span>
                 </div>
 
-                <div className="insights-grid">
-                  {businessInsights.map(
-                    (
-                      insight,
-                      index
-                    ) => (
-                      <div
-                        className={`insight-card ${
-                          insight.type ||
-                          ''
-                        }`}
-                        key={`${insight.title}-${index}`}
-                      >
-                        <div className="insight-icon">
-                          {
-                            insight.icon
+                <div
+                  className="insights-grid"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns:
+                      'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+                    gap: '12px'
+                  }}
+                >
+                  {businessInsights.map((insight, index) => {
+                    const tone =
+                      insight.type === 'positive'
+                        ? {
+                            accent: '#2ca779',
+                            border: '#d9f0e6',
+                            background: '#f7fcf9',
+                            iconBackground: '#e7f7ef',
+                            iconColor: '#29976b'
                           }
+                        : insight.type === 'attention'
+                          ? {
+                              accent: '#d6942b',
+                              border: '#f2e4c8',
+                              background: '#fffcf6',
+                              iconBackground: '#fff3d9',
+                              iconColor: '#bd7a10'
+                            }
+                          : {
+                              accent: '#686bef',
+                              border: '#e4e6fb',
+                              background: '#fbfbff',
+                              iconBackground: '#efefff',
+                              iconColor: '#686bef'
+                            }
+
+                    return (
+                      <div
+                        className={`insight-card ${insight.type || ''}`}
+                        key={`${insight.title}-${index}`}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '12px',
+                          minWidth: 0,
+                          padding: '15px',
+                          border: `1px solid ${tone.border}`,
+                          borderLeft: `3px solid ${tone.accent}`,
+                          borderRadius: '10px',
+                          background: tone.background
+                        }}
+                      >
+                        <div
+                          className="insight-icon"
+                          style={{
+                            display: 'grid',
+                            placeItems: 'center',
+                            flex: '0 0 36px',
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '10px',
+                            background: tone.iconBackground,
+                            color: tone.iconColor
+                          }}
+                        >
+                          {insight.icon}
                         </div>
 
-                        <div>
-                          <small>
-                            {
-                              insight.title
-                            }
-                          </small>
+                        <div
+                          style={{
+                            display: 'grid',
+                            gap: '6px',
+                            minWidth: 0
+                          }}
+                        >
+                          <strong
+                            style={{
+                              color: '#343b50',
+                              fontSize: '12px',
+                              lineHeight: 1.4
+                            }}
+                          >
+                            {insight.title}
+                          </strong>
 
-                          <p>
-                            {
-                              insight.text
-                            }
+                          <p
+                            style={{
+                              margin: 0,
+                              color: '#737d93',
+                              fontSize: '11px',
+                              lineHeight: 1.65,
+                              overflowWrap: 'anywhere'
+                            }}
+                          >
+                            {insight.text}
                           </p>
                         </div>
                       </div>
                     )
-                  )}
+                  })}
+                </div>
+
+                <div className="advanced-insights">
+                  <div className="eyebrow">ADVANCED INSIGHTS</div>
+                  <div
+                    className="quality-summary"
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns:
+                        'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+                      gap: '12px',
+                      margin: '13px 0 0'
+                    }}
+                  >
+                    <div
+                      className="quality-item"
+                      style={{
+                        padding: '16px',
+                        border: '1px solid #e5e7fb',
+                        borderRadius: '11px',
+                        background: '#fcfcff'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '13px' }}>
+                        <span style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#efefff', color: '#686bef' }}>
+                          <Trophy size={16} />
+                        </span>
+                        <span style={{ color: '#343b50', fontSize: '12px', fontWeight: 700 }}>
+                          Top sales category
+                        </span>
+                      </div>
+                      <b style={{ margin: '0 0 5px', color: '#343b50', font: '700 18px Manrope, sans-serif' }}>
+                        {advancedInsights.top_sales_category?.category ||
+                          'Not available'}
+                      </b>
+                      <small style={{ color: '#737d93', fontSize: '10px', lineHeight: 1.6 }}>
+                        {advancedInsights.top_sales_category?.total_sales == null
+                          ? 'Sales: Not available'
+                          : `₹${formatNumber(
+                              advancedInsights.top_sales_category.total_sales
+                            )}`}
+                        {' · '}
+                        {advancedInsights.top_sales_category
+                          ?.percentage_of_total_sales == null
+                          ? 'Share: Not available'
+                          : `${formatNumber(
+                              advancedInsights.top_sales_category
+                                .percentage_of_total_sales
+                            )}% of total sales`}
+                      </small>
+                    </div>
+
+                    <div
+                      className="quality-item"
+                      style={{
+                        padding: '16px',
+                        border: '1px solid #e5e7fb',
+                        borderRadius: '11px',
+                        background: '#fcfcff'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '13px' }}>
+                        <span style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#eaf8f1', color: '#29976b' }}>
+                          <TrendingUp size={16} />
+                        </span>
+                        <span style={{ color: '#343b50', fontSize: '12px', fontWeight: 700 }}>
+                          Regional performance
+                        </span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px' }}>
+                        <div style={{ minWidth: 0, padding: '10px', border: '1px solid #d9f0e6', borderRadius: '8px', background: '#f5fcf8' }}>
+                          <span style={{ color: '#29976b', fontSize: '9px', fontWeight: 700, letterSpacing: '.6px' }}>BEST</span>
+                          <b style={{ margin: '5px 0', color: '#343b50', fontSize: '13px', overflowWrap: 'anywhere' }}>
+                            {advancedInsights.best_region?.region ||
+                              'Not available'}
+                          </b>
+                          <small style={{ color: '#737d93', fontSize: '10px' }}>
+                            {advancedInsights.best_region?.sales == null
+                              ? 'Sales: Not available'
+                              : `₹${formatNumber(
+                                  advancedInsights.best_region.sales
+                                )}`}
+                          </small>
+                        </div>
+                        <div style={{ minWidth: 0, padding: '10px', border: '1px solid #f1e4ce', borderRadius: '8px', background: '#fffbf5' }}>
+                          <span style={{ color: '#bd7a10', fontSize: '9px', fontWeight: 700, letterSpacing: '.6px' }}>LOWEST</span>
+                          <b style={{ margin: '5px 0', color: '#343b50', fontSize: '13px', overflowWrap: 'anywhere' }}>
+                            {advancedInsights.lowest_region?.region ||
+                              'Not available'}
+                          </b>
+                          <small style={{ color: '#737d93', fontSize: '10px' }}>
+                            {advancedInsights.lowest_region?.sales == null
+                              ? 'Sales: Not available'
+                              : `₹${formatNumber(
+                                  advancedInsights.lowest_region.sales
+                                )}`}
+                          </small>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      className="quality-item"
+                      style={{
+                        padding: '16px',
+                        border: '1px solid #e5e7fb',
+                        borderRadius: '11px',
+                        background: '#fcfcff'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '13px' }}>
+                        <span style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#f1edff', color: '#7559c8' }}>
+                          <Package size={16} />
+                        </span>
+                        <span style={{ color: '#343b50', fontSize: '12px', fontWeight: 700 }}>
+                          Top 2 products
+                        </span>
+                      </div>
+                      <div style={{ display: 'grid', gap: '7px', marginBottom: '11px' }}>
+                        {advancedInsights.top_2_products?.products?.length ? (
+                          advancedInsights.top_2_products.products.map(
+                            (product, index) => (
+                              <div key={`${product.product}-${index}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '8px 9px', border: '1px solid #eef0f6', borderRadius: '7px', background: '#fff' }}>
+                                <span style={{ minWidth: 0, color: '#515a70', fontSize: '10px', overflowWrap: 'anywhere' }}>
+                                  <b style={{ color: '#8c91a3', marginRight: '6px' }}>{index + 1}.</b>
+                                  {product.product || 'Not available'}
+                                </span>
+                                <b style={{ flex: '0 0 auto', color: '#343b50', fontSize: '10px' }}>
+                                  {product.sales == null
+                                    ? 'Sales not available'
+                                    : `₹${formatNumber(product.sales)}`}
+                                </b>
+                              </div>
+                            )
+                          )
+                        ) : (
+                          <small style={{ color: '#737d93', fontSize: '10px' }}>Not available</small>
+                        )}
+                      </div>
+                      <b style={{ display: 'block', margin: '0 0 4px', color: '#343b50', fontSize: '12px' }}>
+                        Combined:{' '}
+                        {advancedInsights.top_2_products?.combined_sales ==
+                        null
+                          ? 'Not available'
+                          : `₹${formatNumber(
+                              advancedInsights.top_2_products.combined_sales
+                            )}`}
+                      </b>
+                      <small style={{ color: '#737d93', fontSize: '10px' }}>
+                        {advancedInsights.top_2_products
+                          ?.percentage_of_total_sales == null
+                          ? 'Share: Not available'
+                          : `${formatNumber(
+                              advancedInsights.top_2_products
+                                .percentage_of_total_sales
+                            )}% of total sales`}
+                      </small>
+                    </div>
+
+                    <div
+                      className="quality-item"
+                      style={{
+                        padding: '16px',
+                        border: '1px solid #e5e7fb',
+                        borderRadius: '11px',
+                        background: '#fcfcff'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '13px' }}>
+                        <span style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#eaf4ff', color: '#4384bb' }}>
+                          <BarChart3 size={16} />
+                        </span>
+                        <span style={{ color: '#343b50', fontSize: '12px', fontWeight: 700 }}>
+                          Quantity insights
+                        </span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '7px' }}>
+                        <div style={{ minWidth: 0, padding: '9px 7px', borderRadius: '7px', background: '#f3f6fb' }}>
+                          <small style={{ color: '#838ba0', fontSize: '9px', lineHeight: 1.4 }}>Total</small>
+                          <b style={{ margin: '4px 0 0', color: '#343b50', fontSize: '13px', overflowWrap: 'anywhere' }}>
+                            {advancedInsights.total_quantity == null
+                              ? 'Not available'
+                              : formatNumber(advancedInsights.total_quantity)}
+                          </b>
+                        </div>
+                        <div style={{ minWidth: 0, padding: '9px 7px', borderRadius: '7px', background: '#f3f6fb' }}>
+                          <small style={{ color: '#838ba0', fontSize: '9px', lineHeight: 1.4 }}>Average</small>
+                          <b style={{ margin: '4px 0 0', color: '#343b50', fontSize: '13px', overflowWrap: 'anywhere' }}>
+                            {advancedInsights.average_quantity == null
+                              ? 'Not available'
+                              : formatNumber(advancedInsights.average_quantity)}
+                          </b>
+                        </div>
+                        <div style={{ minWidth: 0, padding: '9px 7px', borderRadius: '7px', background: '#f3f6fb' }}>
+                          <small style={{ color: '#838ba0', fontSize: '9px', lineHeight: 1.4 }}>Highest</small>
+                          <b style={{ margin: '4px 0 0', color: '#343b50', fontSize: '13px', overflowWrap: 'anywhere' }}>
+                            {advancedInsights.highest_quantity == null
+                              ? 'Not available'
+                              : formatNumber(advancedInsights.highest_quantity)}
+                          </b>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      className="quality-item"
+                      style={{
+                        padding: '16px',
+                        border: '1px solid #e5e7fb',
+                        borderRadius: '11px',
+                        background:
+                          advancedInsights.missing_cells == null ||
+                          advancedInsights.duplicate_rows == null
+                            ? '#fcfcff'
+                            : advancedInsights.missing_cells === 0 &&
+                                advancedInsights.duplicate_rows === 0
+                              ? '#f7fcf9'
+                              : '#fffcf6'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '13px' }}>
+                        <span style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#efefff', color: '#686bef' }}>
+                          <CheckCircle2 size={16} />
+                        </span>
+                        <span style={{ color: '#343b50', fontSize: '12px', fontWeight: 700 }}>
+                          Data quality snapshot
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '11px' }}>
+                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background:
+                          advancedInsights.missing_cells == null ||
+                          advancedInsights.duplicate_rows == null
+                            ? '#9aa2b4'
+                            : advancedInsights.missing_cells === 0 &&
+                                advancedInsights.duplicate_rows === 0
+                              ? '#29976b'
+                              : '#bd7a10'
+                        }} />
+                        <b style={{ margin: 0, color:
+                          advancedInsights.missing_cells == null ||
+                          advancedInsights.duplicate_rows == null
+                            ? '#737d93'
+                            : advancedInsights.missing_cells === 0 &&
+                                advancedInsights.duplicate_rows === 0
+                              ? '#29976b'
+                              : '#bd7a10',
+                          fontSize: '10px'
+                        }}>
+                          {advancedInsights.missing_cells == null ||
+                          advancedInsights.duplicate_rows == null
+                            ? 'Status unavailable'
+                            : advancedInsights.missing_cells === 0 &&
+                                advancedInsights.duplicate_rows === 0
+                              ? 'No missing or duplicate records'
+                              : 'Review data quality'}
+                        </b>
+                      </div>
+                      <div style={{ display: 'grid', gap: '8px' }}>
+                        <small style={{ color: '#737d93', fontSize: '10px' }}>
+                          Missing cells:{' '}
+                          {advancedInsights.missing_cells == null
+                            ? 'Not available'
+                            : formatNumber(advancedInsights.missing_cells)}
+                        </small>
+                        <small style={{ color: '#737d93', fontSize: '10px' }}>
+                          Duplicate rows:{' '}
+                          {advancedInsights.duplicate_rows == null
+                            ? 'Not available'
+                            : formatNumber(advancedInsights.duplicate_rows)}
+                        </small>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </section>
             )}
@@ -2744,32 +3422,72 @@ export default function App() {
                   <Lightbulb className="purple" />
                 </div>
 
-                <div className="recommendation-list">
-                  {recommendations.map(
-                    (
-                      recommendation,
-                      index
-                    ) => (
+                <div
+                  className="recommendation-list"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns:
+                      'repeat(auto-fit, minmax(min(100%, 290px), 1fr))',
+                    gap: '12px'
+                  }}
+                >
+                  {recommendations.map((recommendation, index) => (
+                    <div
+                      key={`${recommendation}-${index}`}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '38px minmax(0, 1fr)',
+                        alignItems: 'start',
+                        gap: '12px',
+                        minWidth: 0,
+                        padding: '15px',
+                        border: '1px solid #e4e6fb',
+                        borderRadius: '10px',
+                        background: '#fbfbff'
+                      }}
+                    >
                       <div
-                        key={`${recommendation}-${index}`}
+                        style={{
+                          display: 'grid',
+                          justifyItems: 'center',
+                          gap: '5px'
+                        }}
                       >
-                        <span>
-                          {String(
-                            index + 1
-                          ).padStart(
-                            2,
-                            '0'
-                          )}
+                        <span
+                          style={{
+                            display: 'grid',
+                            placeItems: 'center',
+                            width: '34px',
+                            height: '34px',
+                            borderRadius: '10px',
+                            background: '#efefff',
+                            color: '#686bef',
+                            font: '700 12px Manrope, sans-serif'
+                          }}
+                        >
+                          {String(index + 1).padStart(2, '0')}
                         </span>
-
-                        <p>
-                          {
-                            recommendation
-                          }
-                        </p>
+                        <CheckCircle2
+                          size={14}
+                          aria-hidden="true"
+                          style={{ color: '#8b8ef0' }}
+                        />
                       </div>
-                    )
-                  )}
+
+                      <p
+                        style={{
+                          margin: '2px 0 0',
+                          color: '#414960',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          lineHeight: 1.7,
+                          overflowWrap: 'anywhere'
+                        }}
+                      >
+                        {recommendation}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </section>
             )}
@@ -2963,8 +3681,245 @@ export default function App() {
                   detail="Automatically generated charts based on the uploaded dataset."
                 />
 
+                <div
+                  className="panel"
+                  style={{
+                    padding: '20px',
+                    border: '1px solid #e6e8f3',
+                    background:
+                      'linear-gradient(135deg, #ffffff 0%, #fafaff 100%)'
+                  }}
+                >
+                  <div className="panel-head">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span
+                        style={{
+                          display: 'grid',
+                          placeItems: 'center',
+                          width: '38px',
+                          height: '38px',
+                          flex: '0 0 38px',
+                          borderRadius: '11px',
+                          background: '#efefff',
+                          color: '#686bef'
+                        }}
+                      >
+                        <BarChart3 size={18} />
+                      </span>
+                      <div>
+                        <div className="eyebrow">CHART CONTROLS</div>
+                        <h3>Customize your view</h3>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns:
+                        'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+                      gap: '13px'
+                    }}
+                  >
+                    <label
+                      style={{
+                        display: 'grid',
+                        gap: '7px',
+                        minWidth: 0,
+                        padding: '13px',
+                        border: '1px solid #eceef6',
+                        borderRadius: '9px',
+                        background: '#fff'
+                      }}
+                    >
+                      <span
+                        style={{
+                          color: '#515a70',
+                          fontSize: '11px',
+                          fontWeight: 700
+                        }}
+                      >
+                        Chart Type
+                      </span>
+                      <small style={{ color: '#9299aa', fontSize: '10px' }}>
+                        Choose how to visualize the results.
+                      </small>
+                      <select
+                        value={interactiveChartType}
+                        onChange={(event) =>
+                          setInteractiveChartType(event.target.value)
+                        }
+                        aria-label="Chart type"
+                        style={{
+                          width: '100%',
+                          minHeight: '40px',
+                          border: '1px solid #dfe2f0',
+                          borderRadius: '7px',
+                          background: '#fafaff',
+                          color: '#343b50',
+                          padding: '0 11px',
+                          font: '600 12px "DM Sans", sans-serif',
+                          outlineColor: '#8b8df2'
+                        }}
+                      >
+                        <option value="bar">Bar</option>
+                        <option value="line">Line</option>
+                        <option value="pie">Pie</option>
+                      </select>
+                    </label>
+
+                    <label
+                      style={{
+                        display: 'grid',
+                        gap: '7px',
+                        minWidth: 0,
+                        padding: '13px',
+                        border: '1px solid #eceef6',
+                        borderRadius: '9px',
+                        background: '#fff'
+                      }}
+                    >
+                      <span
+                        style={{
+                          color: '#515a70',
+                          fontSize: '11px',
+                          fontWeight: 700
+                        }}
+                      >
+                        Metric / Dimension
+                      </span>
+                      <small style={{ color: '#9299aa', fontSize: '10px' }}>
+                        Select the dataset breakdown to explore.
+                      </small>
+                      <select
+                        value={interactiveDimension}
+                        onChange={(event) =>
+                          setInteractiveDimension(event.target.value)
+                        }
+                        aria-label="Metric or dimension"
+                        style={{
+                          width: '100%',
+                          minHeight: '40px',
+                          border: '1px solid #dfe2f0',
+                          borderRadius: '7px',
+                          background: '#fafaff',
+                          color: '#343b50',
+                          padding: '0 11px',
+                          font: '600 12px "DM Sans", sans-serif',
+                          outlineColor: '#8b8df2'
+                        }}
+                      >
+                        <option value="region">Sales by Region</option>
+                        <option value="category">Sales by Category</option>
+                        <option value="product">Sales by Product</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="panel">
+                  <div className="panel-head">
+                    <div>
+                      <div className="eyebrow">INTERACTIVE ANALYSIS</div>
+                      <h3>{dimensionLabels[interactiveDimension]}</h3>
+                    </div>
+                  </div>
+
+                  {interactiveChartData.length > 0 ? (
+                    <div className="chart">
+                      <ResponsiveContainer width="100%" height="100%">
+                        {interactiveChartType === 'pie' ? (
+                          <PieChart>
+                            <Tooltip
+                              formatter={(value) => [
+                                formatNumber(value),
+                                'Sales'
+                              ]}
+                            />
+                            <Legend />
+                            <Pie
+                              data={interactiveChartData}
+                              dataKey="value"
+                              nameKey="category"
+                              outerRadius="75%"
+                            >
+                              {interactiveChartData.map((entry, index) => (
+                                <Cell
+                                  key={`${entry.category}-${index}`}
+                                  fill={
+                                    [
+                                      '#686bef',
+                                      '#18a999',
+                                      '#f4a261',
+                                      '#e76f51',
+                                      '#5b8def',
+                                      '#a66dd4'
+                                    ][index % 6]
+                                  }
+                                />
+                              ))}
+                            </Pie>
+                          </PieChart>
+                        ) : interactiveChartType === 'line' ? (
+                          <LineChart data={interactiveChartData}>
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              vertical={false}
+                            />
+                            <XAxis dataKey="category" />
+                            <YAxis tickFormatter={formatNumber} />
+                            <Tooltip
+                              formatter={(value) => [
+                                formatNumber(value),
+                                'Sales'
+                              ]}
+                            />
+                            <Line
+                              dataKey="value"
+                              name="Sales"
+                              stroke="#686bef"
+                              strokeWidth={2}
+                            />
+                          </LineChart>
+                        ) : (
+                          <BarChart data={interactiveChartData}>
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              vertical={false}
+                            />
+                            <XAxis dataKey="category" />
+                            <YAxis tickFormatter={formatNumber} />
+                            <Tooltip
+                              formatter={(value) => [
+                                formatNumber(value),
+                                'Sales'
+                              ]}
+                            />
+                            <Bar
+                              dataKey="value"
+                              name="Sales"
+                              fill="#686bef"
+                              radius={[5, 5, 0, 0]}
+                            />
+                          </BarChart>
+                        )}
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="muted">
+                      No sales data is available for this dimension.
+                    </p>
+                  )}
+                </div>
+
                 <div className="grid analytics-grid">
-                  {analytics.charts.map(
+                  {analytics.charts
+                    .filter(
+                      (item) =>
+                        item.title !== 'Sales by Region' &&
+                        item.title !== 'Sales by Product'
+                    )
+                    .map(
                     (
                       item,
                       index
@@ -2976,7 +3931,7 @@ export default function App() {
                         <div className="panel-head">
                           <div>
                             <div className="eyebrow">
-                              DATA ANALYSIS
+                              ADDITIONAL ANALYTICS
                             </div>
 
                             <h3>
@@ -3272,18 +4227,12 @@ export default function App() {
             <section className="panel ask-panel">
               <div className="panel-head">
                 <div>
-                  <div className="eyebrow">
-                    AI DATA ASSISTANT
-                  </div>
+                  <div className="eyebrow">Ask your data</div>
 
-                  <h3>
-                    Ask your data
-                  </h3>
+                  <h3>AI Data Analyst</h3>
 
                   <p className="muted">
-                    Ask questions about
-                    your uploaded dataset
-                    in plain English.
+                    Ask questions about your uploaded dataset in plain English and get AI-powered insights.
                   </p>
                 </div>
 
@@ -3293,23 +4242,28 @@ export default function App() {
               </div>
 
               <div className="suggestions">
-                {suggestions.map(
-                  (suggestion) => (
-                    <button
-                      type="button"
-                      className="suggestion"
-                      key={suggestion}
-                      disabled={busy}
-                      onClick={() =>
-                        setQuestion(
-                          suggestion
-                        )
-                      }
-                    >
-                      {suggestion}
-                    </button>
-                  )
-                )}
+                {[
+                  'Give me 3 important insights from this dataset.',
+                  'Which region has the highest sales and why?',
+                  'Which product should we focus on?',
+                  'What are the biggest data quality issues?',
+                  'Compare sales across regions.',
+                  'Give me 5 business recommendations.'
+                ].map((suggestion) => (
+                  <button
+                    type="button"
+                    className="suggestion"
+                    key={suggestion}
+                    disabled={busy}
+                    onClick={() =>
+                      setQuestion(
+                        suggestion
+                      )
+                    }
+                  >
+                    {suggestion}
+                  </button>
+                ))}
               </div>
 
               <form
@@ -3323,17 +4277,14 @@ export default function App() {
                       e.target.value
                     )
                   }
-                  placeholder="Ask a question about your data…"
+                  placeholder="Ask anything about your data…"
                   disabled={busy}
                   aria-label="Ask a question about your data"
                 />
 
                 <button
                   type="submit"
-                  disabled={
-                    busy ||
-                    !question.trim()
-                  }
+                  disabled={busy || !question.trim()}
                 >
                   {busy ? (
                     <RefreshCw
@@ -3346,13 +4297,20 @@ export default function App() {
                   )}
 
                   {busy
-                    ? 'Working…'
+                    ? 'Analyzing…'
                     : 'Ask AI'}
                 </button>
               </form>
 
               {answers.length > 0 && (
                 <div className="answers">
+                  <div className="answers-heading">
+                    <span>AI ANALYSIS</span>
+                    <span>
+                      {answers.length} question
+                      {answers.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
                   {answers.map(
                     (
                       item,
@@ -3605,6 +4563,204 @@ export default function App() {
               )}
             </section>
           </>
+        )}
+
+        {uploadedDatasets.length > 0 && (
+          <section
+            className="panel"
+            id="data-comparison"
+          >
+            <div className="panel-head">
+              <div>
+                <div className="eyebrow">DATA COMPARISON</div>
+                <h3>Compare uploaded datasets</h3>
+                <p className="muted">
+                  Compare verified metrics from datasets already uploaded in
+                  this session.
+                </p>
+              </div>
+              <Rows3 className="purple" />
+            </div>
+
+            <form
+              onSubmit={compareUploadedDatasets}
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'end',
+                gap: '12px',
+                marginBottom: '18px'
+              }}
+            >
+              <label style={{ display: 'grid', gap: '6px', flex: '1 1 180px' }}>
+                <span className="muted">Dataset 1</span>
+                <select
+                  value={selectedCompareDataset1}
+                  onChange={(event) =>
+                    setSelectedCompareDataset1(event.target.value)
+                  }
+                  required
+                  aria-label="Dataset 1"
+                >
+                  <option value="" disabled>
+                    Select a dataset
+                  </option>
+                  {uploadedDatasets.map((dataset) => (
+                    <option
+                      key={dataset.dataset_id}
+                      value={dataset.dataset_id}
+                    >
+                      {dataset.filename}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label style={{ display: 'grid', gap: '6px', flex: '1 1 180px' }}>
+                <span className="muted">Dataset 2</span>
+                <select
+                  value={selectedCompareDataset2}
+                  onChange={(event) =>
+                    setSelectedCompareDataset2(event.target.value)
+                  }
+                  required
+                  aria-label="Dataset 2"
+                >
+                  <option value="" disabled>
+                    Select a dataset
+                  </option>
+                  {uploadedDatasets.map((dataset) => (
+                    <option
+                      key={dataset.dataset_id}
+                      value={dataset.dataset_id}
+                    >
+                      {dataset.filename}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <button
+                className="secondary-btn"
+                type="submit"
+                disabled={
+                  comparisonBusy ||
+                  !selectedCompareDataset1 ||
+                  !selectedCompareDataset2
+                }
+              >
+                {comparisonBusy ? 'Comparing…' : 'Compare Datasets'}
+              </button>
+            </form>
+
+            {comparisonError && (
+              <div className="error" role="alert">
+                <AlertTriangle size={18} />
+                <span>{comparisonError}</span>
+              </div>
+            )}
+
+            {comparison && (
+              <>
+                <h4>Dataset values</h4>
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Metric</th>
+                        <th>{comparison.dataset_1.filename}</th>
+                        <th>{comparison.dataset_2.filename}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        ['Rows', 'rows'],
+                        ['Columns', 'columns'],
+                        ['Missing Cells', 'missing_cells'],
+                        ['Duplicate Rows', 'duplicate_rows'],
+                        ['Total Sales', 'total_sales'],
+                        ['Average Sales', 'average_sales'],
+                        ['Total Quantity', 'total_quantity'],
+                        ['Average Quantity', 'average_quantity']
+                      ].map(([label, key]) => (
+                        <tr key={key}>
+                          <td>{label}</td>
+                          <td>
+                            {comparison.dataset_1[key] == null
+                              ? 'N/A'
+                              : formatNumber(comparison.dataset_1[key])}
+                          </td>
+                          <td>
+                            {comparison.dataset_2[key] == null
+                              ? 'N/A'
+                              : formatNumber(comparison.dataset_2[key])}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <h4>Changes (Dataset 2 − Dataset 1)</h4>
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Metric</th>
+                        <th>Absolute Change</th>
+                        <th>Percentage Change</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        ['Rows', 'rows'],
+                        ['Columns', 'columns'],
+                        ['Missing Cells', 'missing_cells'],
+                        ['Duplicate Rows', 'duplicate_rows'],
+                        ['Total Sales', 'total_sales'],
+                        ['Average Sales', 'average_sales'],
+                        ['Total Quantity', 'total_quantity'],
+                        ['Average Quantity', 'average_quantity']
+                      ].map(([label, key]) => {
+                        const change = comparison.changes[key]
+                        const percentage = change.percentage_change
+
+                        return (
+                          <tr key={key}>
+                            <td>{label}</td>
+                            <td>
+                              {change.absolute_change == null
+                                ? 'N/A'
+                                : formatNumber(change.absolute_change)}
+                            </td>
+                            <td
+                              style={{
+                                color:
+                                  percentage == null
+                                    ? '#8790a4'
+                                    : percentage > 0
+                                      ? '#29976b'
+                                      : percentage < 0
+                                        ? '#b72b3b'
+                                        : '#596277',
+                                fontWeight: 600
+                              }}
+                            >
+                              {percentage == null
+                                ? 'N/A'
+                                : `${percentage > 0 ? '+' : ''}${formatNumber(
+                                    percentage
+                                  )}%`}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </section>
         )}
       </main>
     </div>

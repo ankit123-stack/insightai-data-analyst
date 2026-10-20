@@ -7,8 +7,10 @@ import pandas as pd
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from groq import Groq
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
 
 load_dotenv()
 
@@ -857,6 +859,155 @@ def build_business_insights(df):
     return insights
 
 
+def build_advanced_insights(df):
+    """Calculate additional verified business metrics from the dataset."""
+    numeric_columns = list(
+        df.select_dtypes(include=np.number).columns
+    )
+    categorical_columns = list(
+        df.select_dtypes(
+            include=["object", "category", "bool", "string"]
+        ).columns
+    )
+
+    def find_matching_column(columns, keywords):
+        return next(
+            (
+                column
+                for column in columns
+                if any(
+                    keyword in str(column).lower()
+                    for keyword in keywords
+                )
+            ),
+            None,
+        )
+
+    sales_column = find_matching_column(
+        numeric_columns,
+        ["sales", "revenue", "turnover"],
+    )
+    quantity_column = find_matching_column(
+        numeric_columns,
+        ["quantity", "qty"],
+    )
+    category_column = find_matching_column(
+        categorical_columns,
+        ["category", "classification"],
+    )
+    region_column = find_matching_column(
+        categorical_columns,
+        ["region", "location", "territory", "area"],
+    )
+    product_column = find_matching_column(
+        categorical_columns,
+        ["product", "item", "service"],
+    )
+
+    total_sales = None
+    top_sales_category = None
+    best_region = None
+    lowest_region = None
+    top_2_products = None
+
+    if sales_column is not None:
+        sales = pd.to_numeric(df[sales_column], errors="coerce")
+        sales_values = sales.dropna()
+        total_sales = sales_values.sum() if not sales_values.empty else None
+
+        if category_column is not None:
+            category_summary = group_summary(
+                df,
+                category_column,
+                sales_column,
+                operation="sum",
+            )
+            if not category_summary.empty:
+                top_category = category_summary.iloc[0]
+                category_sales = clean_value(top_category[sales_column])
+                top_sales_category = {
+                    "category": clean_value(top_category[category_column]),
+                    "total_sales": category_sales,
+                    "percentage_of_total_sales": (
+                        round(float(category_sales) / float(total_sales) * 100, 2)
+                        if total_sales not in (None, 0)
+                        else None
+                    ),
+                }
+
+        if region_column is not None:
+            region_summary = group_summary(
+                df,
+                region_column,
+                sales_column,
+                operation="sum",
+            )
+            if not region_summary.empty:
+                best = region_summary.iloc[0]
+                lowest = region_summary.iloc[-1]
+                best_region = {
+                    "region": clean_value(best[region_column]),
+                    "sales": clean_value(best[sales_column]),
+                }
+                lowest_region = {
+                    "region": clean_value(lowest[region_column]),
+                    "sales": clean_value(lowest[sales_column]),
+                }
+
+        if product_column is not None:
+            product_summary = group_summary(
+                df,
+                product_column,
+                sales_column,
+                operation="sum",
+            ).head(2)
+            if not product_summary.empty:
+                products = [
+                    {
+                        "product": clean_value(row[product_column]),
+                        "sales": clean_value(row[sales_column]),
+                    }
+                    for _, row in product_summary.iterrows()
+                ]
+                combined_sales = sum(
+                    float(product["sales"] or 0)
+                    for product in products
+                )
+                top_2_products = {
+                    "products": products,
+                    "combined_sales": clean_value(combined_sales),
+                    "percentage_of_total_sales": (
+                        round(combined_sales / float(total_sales) * 100, 2)
+                        if total_sales not in (None, 0)
+                        else None
+                    ),
+                }
+
+    quantity = (
+        pd.to_numeric(df[quantity_column], errors="coerce").dropna()
+        if quantity_column is not None
+        else pd.Series(dtype=float)
+    )
+
+    return {
+        "top_sales_category": top_sales_category,
+        "best_region": best_region,
+        "lowest_region": lowest_region,
+        "top_2_products": top_2_products,
+        "total_quantity": (
+            clean_value(quantity.sum()) if not quantity.empty else None
+        ),
+        "average_quantity": (
+            round(float(quantity.mean()), 2) if not quantity.empty else None
+        ),
+        "highest_quantity": (
+            clean_value(quantity.max()) if not quantity.empty else None
+        ),
+        "missing_cells": int(df.isna().sum().sum()),
+        "duplicate_rows": int(df.duplicated().sum()),
+    }
+
+
 # --------------------------------------------------
 # ROOT AND HEALTH
 # --------------------------------------------------
@@ -887,11 +1038,12 @@ def health():
 @app.post("/api/upload")
 async def upload_csv(file: UploadFile = File(...)):
     filename = file.filename or ""
+    extension = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
 
-    if not filename.lower().endswith(".csv"):
+    if extension not in ("csv", "xlsx"):
         raise HTTPException(
             status_code=400,
-            detail="Please upload a CSV file.",
+            detail="Only CSV and Excel files are supported.",
         )
 
     try:
@@ -901,7 +1053,7 @@ async def upload_csv(file: UploadFile = File(...)):
         if len(content) > 15 * 1024 * 1024:
             raise HTTPException(
                 status_code=413,
-                detail="The CSV file is too large. Maximum size is 15 MB.",
+                detail="The file is too large. Maximum size is 15 MB.",
             )
 
         if not content:
@@ -910,24 +1062,28 @@ async def upload_csv(file: UploadFile = File(...)):
                 detail="The uploaded file is empty.",
             )
 
-        try:
-            df = pd.read_csv(io.BytesIO(content))
-        except UnicodeDecodeError:
-            df = pd.read_csv(
-                io.BytesIO(content),
-                encoding="latin-1",
-            )
+        if extension == "xlsx":
+            file.file.seek(0)
+            df = pd.read_excel(file.file, engine="openpyxl")
+        else:
+            try:
+                df = pd.read_csv(io.BytesIO(content))
+            except UnicodeDecodeError:
+                df = pd.read_csv(
+                    io.BytesIO(content),
+                    encoding="latin-1",
+                )
 
         if df.empty:
             raise HTTPException(
                 status_code=400,
-                detail="The CSV file contains no data rows.",
+                detail="The file contains no data rows.",
             )
 
         if len(df.columns) == 0:
             raise HTTPException(
                 status_code=400,
-                detail="No columns were found in the CSV file.",
+                detail="No columns were found in the file.",
             )
 
         df.columns = [
@@ -945,7 +1101,7 @@ async def upload_csv(file: UploadFile = File(...)):
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "The CSV contains duplicate column names. "
+                    "The file contains duplicate column names. "
                     "Rename them and try again."
                 ),
             )
@@ -978,7 +1134,7 @@ async def upload_csv(file: UploadFile = File(...)):
             "success": True,
             "dataset_id": dataset_id,
             "filename": filename,
-            "message": "CSV uploaded successfully.",
+            "message": "File uploaded successfully.",
             "preview": dataframe_records(df.head(10)),
             "columns": list(map(str, df.columns)),
             "numeric_columns": numeric_columns,
@@ -993,13 +1149,13 @@ async def upload_csv(file: UploadFile = File(...)):
     except pd.errors.EmptyDataError:
         raise HTTPException(
             status_code=400,
-            detail="The CSV file has no readable data.",
+            detail="The file has no readable data.",
         )
 
     except Exception as error:
         raise HTTPException(
             status_code=400,
-            detail=f"Could not process CSV: {str(error)}",
+            detail=f"Could not process file: {str(error)}",
         )
 
 
@@ -1245,6 +1401,8 @@ def get_analytics(dataset_id: str):
             )
         ]
 
+    advanced_insights = build_advanced_insights(df)
+
     return {
         "dataset_id": dataset_id,
         "filename": DATASETS[dataset_id]["filename"],
@@ -1252,6 +1410,304 @@ def get_analytics(dataset_id: str):
         "numeric_summary": numeric_summary,
         "categorical_summary": categorical_summary,
         "business_insights": build_business_insights(df),
+        "advanced_insights": advanced_insights,
+    }
+
+
+@app.get("/api/report/excel/{dataset_id}")
+def download_excel_report(dataset_id: str):
+    if dataset_id not in DATASETS:
+        raise HTTPException(
+            status_code=404,
+            detail="Dataset not found. Upload your file again.",
+        )
+
+    dataset = DATASETS[dataset_id]
+    df = dataset["df"]
+    dataset_profile = profile(df)
+    business = build_business_insights(df)
+    advanced = build_advanced_insights(df)
+    workbook = Workbook()
+
+    header_fill = PatternFill(
+        fill_type="solid",
+        fgColor="686BEF",
+    )
+    header_font = Font(
+        bold=True,
+        color="FFFFFF",
+    )
+
+    def write_table(sheet, headers, rows, missing_label="Unavailable"):
+        sheet.append(headers)
+        for cell in sheet[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+        sheet.freeze_panes = "A2"
+
+        for row in rows:
+            sheet.append([
+                missing_label if value is None else value
+                for value in row
+            ])
+
+        for column_cells in sheet.columns:
+            column_letter = column_cells[0].column_letter
+            width = max(
+                len(str(cell.value or ""))
+                for cell in column_cells
+            )
+            sheet.column_dimensions[column_letter].width = min(
+                max(width + 2, 12),
+                50,
+            )
+
+        for row in sheet.iter_rows(min_row=2):
+            for cell in row:
+                if isinstance(cell.value, str):
+                    cell.data_type = "s"
+
+    summary = workbook.active
+    summary.title = "Summary"
+    write_table(
+        summary,
+        ["Metric", "Value"],
+        [
+            ["Filename", dataset["filename"]],
+            ["Dataset ID", dataset_id],
+            ["Total Rows", dataset_profile["rows"]],
+            ["Total Columns", dataset_profile["columns"]],
+            ["Missing Cells", dataset_profile["missing_values"]],
+            ["Duplicate Rows", dataset_profile["duplicate_rows"]],
+            ["Total Sales", business["total_sales"]],
+            ["Average Sales", business["average_sales"]],
+            ["Average Quantity", advanced["average_quantity"]],
+        ],
+    )
+
+    business_sheet = workbook.create_sheet("Business Insights")
+    top_product = business["top_product"]
+    lowest_product = business["lowest_product"]
+    best_region = business["best_region"]
+    highest_sale = business["highest_sale"]
+    business_rows = [
+        [
+            "Top-performing product",
+            (
+                f"{top_product['name']} — {fmt(top_product['sales'])} in sales"
+                if top_product
+                else "Unavailable"
+            ),
+        ],
+        [
+            "Lowest-performing product",
+            (
+                f"{lowest_product['name']} — "
+                f"{fmt(lowest_product['sales'])} in sales"
+                if lowest_product
+                else "Unavailable"
+            ),
+        ],
+        [
+            "Strongest region",
+            (
+                f"{best_region['name']} — {fmt(best_region['sales'])} in sales"
+                if best_region
+                else "Unavailable"
+            ),
+        ],
+        [
+            "Highest individual sale",
+            fmt(highest_sale) if highest_sale is not None else "Unavailable",
+        ],
+        [
+            "Overall sales performance",
+            (
+                f"Total sales: {fmt(business['total_sales'])}; "
+                f"average sales: {fmt(business['average_sales'])}"
+                if business["total_sales"] is not None
+                or business["average_sales"] is not None
+                else "Unavailable"
+            ),
+        ],
+    ]
+    recommendations = business["recommendations"]
+    if recommendations:
+        business_rows.extend(
+            [
+                [f"Recommendation {index}", recommendation]
+                for index, recommendation in enumerate(
+                    recommendations,
+                    start=1,
+                )
+            ]
+        )
+    else:
+        business_rows.append(["Recommendations", "Unavailable"])
+    write_table(
+        business_sheet,
+        ["Insight", "Value"],
+        business_rows,
+    )
+
+    numeric = df.select_dtypes(include=np.number)
+    statistics_sheet = workbook.create_sheet("Statistics")
+    write_table(
+        statistics_sheet,
+        ["Column", "Sum", "Average", "Median", "Minimum", "Maximum"],
+        [
+            [
+                str(column),
+                clean_value(series.sum()),
+                clean_value(series.mean()),
+                clean_value(series.median()),
+                clean_value(series.min()),
+                clean_value(series.max()),
+            ]
+            for column in numeric.columns
+            for series in [numeric[column].dropna()]
+        ],
+    )
+
+    quality_sheet = workbook.create_sheet("Data Quality")
+    write_table(
+        quality_sheet,
+        ["Column", "Data Type", "Missing Values", "Unique Values"],
+        [
+            [
+                str(column),
+                str(df[column].dtype),
+                int(df[column].isna().sum()),
+                int(df[column].nunique(dropna=True)),
+            ]
+            for column in df.columns
+        ],
+    )
+
+    raw_data_sheet = workbook.create_sheet("Raw Data")
+    write_table(
+        raw_data_sheet,
+        [str(column) for column in df.columns],
+        [
+            [
+                clean_value(value)
+                for value in row
+            ]
+            for row in df.itertuples(index=False, name=None)
+        ],
+        missing_label=None,
+    )
+
+    output = io.BytesIO()
+    workbook.save(output)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="InsightAI_Report_{dataset_id}.xlsx"'
+            ),
+        },
+    )
+
+
+@app.post("/api/compare")
+def compare_datasets(payload: dict):
+    dataset_1_id = payload.get("dataset_1_id")
+    dataset_2_id = payload.get("dataset_2_id")
+
+    if not isinstance(dataset_1_id, str) or dataset_1_id not in DATASETS:
+        raise HTTPException(
+            status_code=404,
+            detail="Dataset not found: dataset_1_id.",
+        )
+
+    if not isinstance(dataset_2_id, str) or dataset_2_id not in DATASETS:
+        raise HTTPException(
+            status_code=404,
+            detail="Dataset not found: dataset_2_id.",
+        )
+
+    def dataset_metrics(dataset_id):
+        dataset = DATASETS[dataset_id]
+        df = dataset["df"]
+        metrics = {
+            "dataset_id": dataset_id,
+            "filename": dataset["filename"],
+            "rows": int(df.shape[0]),
+            "columns": int(df.shape[1]),
+            "missing_cells": int(df.isna().sum().sum()),
+            "duplicate_rows": int(df.duplicated().sum()),
+        }
+
+        for column, total_key, average_key in (
+            ("Sales", "total_sales", "average_sales"),
+            ("Quantity", "total_quantity", "average_quantity"),
+        ):
+            if (
+                column in df.columns
+                and pd.api.types.is_numeric_dtype(df[column])
+            ):
+                values = pd.to_numeric(
+                    df[column],
+                    errors="coerce",
+                ).replace([np.inf, -np.inf], np.nan).dropna()
+                total = values.sum(min_count=1)
+                average = values.mean()
+                metrics[total_key] = clean_value(total)
+                metrics[average_key] = (
+                    round(float(average), 2)
+                    if pd.notna(average) and np.isfinite(average)
+                    else None
+                )
+            else:
+                metrics[total_key] = None
+                metrics[average_key] = None
+
+        return metrics
+
+    dataset_1 = dataset_metrics(dataset_1_id)
+    dataset_2 = dataset_metrics(dataset_2_id)
+    changes = {}
+
+    for metric in (
+        "rows",
+        "columns",
+        "missing_cells",
+        "duplicate_rows",
+        "total_sales",
+        "average_sales",
+        "total_quantity",
+        "average_quantity",
+    ):
+        value_1 = dataset_1[metric]
+        value_2 = dataset_2[metric]
+
+        if value_1 is None or value_2 is None:
+            absolute_change = None
+            percentage_change = None
+        else:
+            absolute_change = clean_value(value_2 - value_1)
+            percentage_change = (
+                round((value_2 - value_1) / value_1 * 100, 2)
+                if value_1 != 0
+                else None
+            )
+
+        changes[metric] = {
+            "absolute_change": absolute_change,
+            "percentage_change": percentage_change,
+        }
+
+    return {
+        "dataset_1": dataset_1,
+        "dataset_2": dataset_2,
+        "changes": changes,
     }
 
 
