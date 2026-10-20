@@ -1,24 +1,31 @@
 # InsightAI - AI Data Analyst
 
-InsightAI is a web-based data analysis platform that transforms CSV and Excel datasets into useful insights. It combines data profiling, data quality checks, data cleaning, interactive visualizations, business analytics, downloadable reports, and an AI-powered data assistant.
+InsightAI is a web-based data analysis platform that transforms CSV and Excel datasets into useful insights. The deployed application combines data profiling, data quality analysis, smart data cleaning, business and advanced insights, interactive charts, statistical analysis, AI-powered Q&A, dataset comparison, and downloadable reports.
+
+## Live Demo
+
+- **Frontend:** [https://insightai-data-analyst-2uld.vercel.app](https://insightai-data-analyst-2uld.vercel.app/)
+- **Backend API:** [https://insightai-data-analyst.onrender.com](https://insightai-data-analyst.onrender.com/)
+- **API Docs:** [https://insightai-data-analyst.onrender.com/docs](https://insightai-data-analyst.onrender.com/docs)
+- **GitHub Repository:** [https://github.com/ankit123-stack/insightai-data-analyst](https://github.com/ankit123-stack/insightai-data-analyst)
 
 ## Features
 
 - **CSV and Excel Upload and Analysis:** Upload CSV or Excel (`.xlsx`) files and generate an analysis profile.
 - **Data Profiling:** Explore row counts, columns, data types, unique values, missing cells, and statistical summaries.
-- **Data Quality Checker:** Identify missing values, duplicate rows, outliers, and potential data quality issues.
+- **Data Quality Analysis:** Identify missing values, duplicate rows, outliers, and potential data quality issues.
 - **Smart Data Cleaning:** Preview cleaning operations, apply supported changes, reset to the original dataset, and download cleaned data.
 - **Interactive Charts:** Explore data with chart controls and visualizations.
 - **Business Performance Analytics:** Review sales, profit, profit margin, and product or regional performance when the required data is available.
 - **Business Insights:** Review performance insights generated from the available dataset metrics.
 - **Advanced Business Insights:** Explore category, regional, product, quantity, and data quality summaries.
 - **Decision Support:** Get recommendations based on calculated dataset results.
-- **AI Data Assistant:** Ask natural-language questions about your dataset using the configured Groq API integration.
+- **AI Q&A with Groq:** Ask natural-language questions about your dataset using the configured Groq API integration.
 - **Calculated, Backend-Grounded Answers:** Supported questions use backend calculations and verified dataset statistics.
 - **Dataset Comparison:** Compare basic metrics from two datasets currently loaded in the backend.
 - **Downloadable Reports:** Export reports as JSON, PDF, or Excel workbooks. Excel workbooks include **Summary**, **Business Insights**, **Statistics**, **Data Quality**, and **Raw Data** worksheets.
 - **Raw Dataset Preview:** Inspect uploaded data.
-- **Statistical Summaries:** Review statistics for numeric columns.
+- **Statistical Analysis:** Review summaries and statistics for numeric columns.
 
 ## Tech Stack
 
