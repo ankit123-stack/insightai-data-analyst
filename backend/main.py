@@ -26,6 +26,7 @@ app.add_middleware(
     "http://localhost:5177",
     "http://localhost:5178",
     "https://insightai-data-analyst.vercel.app",
+    "https://insightai-data-analyst-2uld.vercel.app",
 ],
     allow_credentials=True,
     allow_methods=["*"],
