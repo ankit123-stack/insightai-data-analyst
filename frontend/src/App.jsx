@@ -372,7 +372,7 @@ function Metric({
   detail,
   polished = false,
   qualityStatus,
-  primary = false
+  hoverHighlight = false
 }) {
   const cardStyle = polished
     ? {
@@ -381,17 +381,10 @@ function Metric({
         alignItems: 'flex-start',
         minHeight: '172px',
         padding: '20px',
-        borderColor: primary
-          ? '#686bef'
-          : qualityStatus === 'good'
-            ? '#d9eee5'
-            : '#e9ecf4',
-        background: primary
-          ? 'linear-gradient(145deg, #f1f1ff 0%, #ffffff 78%)'
-          : '#fff',
-        boxShadow: primary
-          ? '0 10px 28px rgba(104, 107, 239, 0.12)'
-          : '0 8px 24px rgba(31, 42, 75, 0.05)'
+        borderColor:
+          qualityStatus === 'good' ? '#d9eee5' : '#e9ecf4',
+        background: '#fff',
+        boxShadow: '0 8px 24px rgba(31, 42, 75, 0.05)'
       }
     : undefined
 
@@ -400,18 +393,14 @@ function Metric({
         width: '40px',
         height: '40px',
         marginBottom: '18px',
-        background: primary
-          ? '#686bef'
-          : (
+        background: (
           qualityStatus === 'good'
             ? '#eaf8f1'
             : qualityStatus === 'warning'
               ? '#fff5e8'
               : '#efefff'
           ),
-        color: primary
-          ? '#fff'
-          : (
+        color: (
           qualityStatus === 'good'
             ? '#29976b'
             : qualityStatus === 'warning'
@@ -422,7 +411,10 @@ function Metric({
     : undefined
 
   return (
-    <div className="metric" style={cardStyle}>
+    <div
+      className={`metric${hoverHighlight ? ' kpi-hover-card' : ''}`}
+      style={cardStyle}
+    >
       <div className="metric-icon" style={iconStyle}>{icon}</div>
       <small
         style={
@@ -445,7 +437,7 @@ function Metric({
                 fontSize: 'clamp(25px, 2.2vw, 32px)',
                 lineHeight: 1.15,
                 letterSpacing: '-0.7px',
-                color: primary ? '#3f42bd' : '#20263a'
+                color: '#20263a'
               }
             : undefined
         }
@@ -624,6 +616,8 @@ function buildBusinessInsights(analytics, profile) {
 // --------------------------------------------------
 
 export default function App() {
+  const [selectedNavigation, setSelectedNavigation] =
+    useState('Data overview')
   const [profile, setProfile] = useState(null)
   const [chart, setChart] = useState(null)
   const [analytics, setAnalytics] = useState(null)
@@ -2234,6 +2228,49 @@ export default function App() {
 
   return (
     <div className="layout">
+      <style>{`
+        .kpi-hover-card:hover,
+        .insight-hover-card:hover,
+        .advanced-hover-card:hover,
+        .recommendation-hover-card:hover {
+          border-color: #686bef !important;
+          background: linear-gradient(145deg, #f1f1ff 0%, #ffffff 78%) !important;
+          box-shadow: 0 10px 28px rgba(104, 107, 239, 0.12) !important;
+        }
+        .nav:hover,
+        .nav.active:hover {
+          background: #686bef;
+          color: #fff;
+        }
+        .quality-item:hover,
+        .cleaning-column:hover,
+        .column:hover,
+        .answer-card:hover,
+        .chart-control:hover,
+        .suggestions button:hover {
+          border-color: #686bef !important;
+          background: linear-gradient(145deg, #f1f1ff 0%, #ffffff 78%) !important;
+          box-shadow: 0 10px 28px rgba(104, 107, 239, 0.12) !important;
+        }
+        .layout select:hover {
+          border-color: #686bef !important;
+          box-shadow: 0 0 0 2px rgba(104, 107, 239, 0.12);
+        }
+        .layout select option:hover {
+          background: #686bef;
+          color: #fff;
+        }
+        .insight-hover-card:hover {
+          border-left-color: #686bef !important;
+        }
+        .kpi-hover-card:hover .metric-icon {
+          background: #686bef !important;
+          color: #fff !important;
+        }
+        .kpi-hover-card:hover strong {
+          color: #3f42bd !important;
+        }
+      `}</style>
       <aside className="sidebar">
         <div className="brand">
           <div className="logo">
@@ -2250,21 +2287,32 @@ export default function App() {
           WORKSPACE
         </p>
 
-        <div className="nav active">
+        <a
+          className={`nav${selectedNavigation === 'Data overview' ? ' active' : ''}`}
+          href="#data-overview"
+          style={{ textDecoration: 'none' }}
+          onClick={() => setSelectedNavigation('Data overview')}
+        >
           <Database size={18} />
           Data overview
-        </div>
+        </a>
 
-        <div className="nav">
+        <a
+          className={`nav${selectedNavigation === 'Ask your data' ? ' active' : ''}`}
+          href="#ask-your-data"
+          style={{ textDecoration: 'none' }}
+          onClick={() => setSelectedNavigation('Ask your data')}
+        >
           <MessageSquare size={18} />
           Ask your data
-        </div>
+        </a>
 
         {uploadedDatasets.length > 0 && (
           <a
-            className="nav"
+            className={`nav${selectedNavigation === 'Data Comparison' ? ' active' : ''}`}
             href="#data-comparison"
             style={{ textDecoration: 'none' }}
+            onClick={() => setSelectedNavigation('Data Comparison')}
           >
             <Rows3 size={18} />
             Data Comparison
@@ -2278,7 +2326,7 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="main">
+      <main className="main" id="data-overview">
         <header className="header">
           <div>
             <div className="eyebrow">
@@ -2514,6 +2562,7 @@ export default function App() {
                 icon={<Rows3 />}
                 label="Total rows"
                 polished
+                hoverHighlight
                 value={formatNumber(
                   profile.rows
                 )}
@@ -2524,6 +2573,7 @@ export default function App() {
                 icon={<Columns3 />}
                 label="Total columns"
                 polished
+                hoverHighlight
                 value={formatNumber(
                   profile.columns_count
                 )}
@@ -2538,6 +2588,7 @@ export default function App() {
                 }
                 label="Missing cells"
                 polished
+                hoverHighlight
                 qualityStatus={
                   profile.missing_cells === 0
                     ? 'good'
@@ -2561,6 +2612,7 @@ export default function App() {
                 }
                 label="Duplicate rows"
                 polished
+                hoverHighlight
                 qualityStatus={
                   profile.duplicate_rows === 0
                     ? 'good'
@@ -2926,7 +2978,7 @@ row[column.name] === 'NaN'
                       }
                       label="Total Sales"
                       polished
-                      primary
+                      hoverHighlight
                       value={formatNumber(
                         kpis.total_sales
                       )}
@@ -2941,6 +2993,7 @@ row[column.name] === 'NaN'
                         <TrendingUp />
                       }
                       label="Total Profit"
+                      hoverHighlight
                       value={formatNumber(
                         kpis.total_profit
                       )}
@@ -2956,6 +3009,7 @@ row[column.name] === 'NaN'
                       }
                       label="Average Sales"
                       polished
+                      hoverHighlight
                       value={formatNumber(
                         kpis.average_sales
                       )}
@@ -2971,6 +3025,7 @@ row[column.name] === 'NaN'
                       }
                       label="Average Quantity"
                       polished
+                      hoverHighlight
                       value={formatNumber(
                         kpis.average_quantity
                       )}
@@ -2984,6 +3039,7 @@ row[column.name] === 'NaN'
                     }
                     label="Profit Margin"
                     polished
+                    hoverHighlight
                     value={
                       business.profit_margin == null
                         ? '—%'
@@ -3064,7 +3120,7 @@ row[column.name] === 'NaN'
 
                     return (
                       <div
-                        className={`insight-card ${insight.type || ''}`}
+                        className={`insight-card insight-hover-card ${insight.type || ''}`}
                         key={`${insight.title}-${index}`}
                         style={{
                           display: 'flex',
@@ -3141,7 +3197,7 @@ row[column.name] === 'NaN'
                     }}
                   >
                     <div
-                      className="quality-item"
+                      className="quality-item advanced-hover-card"
                       style={{
                         padding: '16px',
                         border: '1px solid #e5e7fb',
@@ -3179,7 +3235,7 @@ row[column.name] === 'NaN'
                     </div>
 
                     <div
-                      className="quality-item"
+                      className="quality-item advanced-hover-card"
                       style={{
                         padding: '16px',
                         border: '1px solid #e5e7fb',
@@ -3228,7 +3284,7 @@ row[column.name] === 'NaN'
                     </div>
 
                     <div
-                      className="quality-item"
+                      className="quality-item advanced-hover-card"
                       style={{
                         padding: '16px',
                         border: '1px solid #e5e7fb',
@@ -3286,7 +3342,7 @@ row[column.name] === 'NaN'
                     </div>
 
                     <div
-                      className="quality-item"
+                      className="quality-item advanced-hover-card"
                       style={{
                         padding: '16px',
                         border: '1px solid #e5e7fb',
@@ -3331,7 +3387,7 @@ row[column.name] === 'NaN'
                     </div>
 
                     <div
-                      className="quality-item"
+                      className="quality-item advanced-hover-card"
                       style={{
                         padding: '16px',
                         border: '1px solid #e5e7fb',
@@ -3433,6 +3489,7 @@ row[column.name] === 'NaN'
                 >
                   {recommendations.map((recommendation, index) => (
                     <div
+                      className="recommendation-hover-card"
                       key={`${recommendation}-${index}`}
                       style={{
                         display: 'grid',
@@ -3722,6 +3779,7 @@ row[column.name] === 'NaN'
                     }}
                   >
                     <label
+                      className="chart-control"
                       style={{
                         display: 'grid',
                         gap: '7px',
@@ -3769,6 +3827,7 @@ row[column.name] === 'NaN'
                     </label>
 
                     <label
+                      className="chart-control"
                       style={{
                         display: 'grid',
                         gap: '7px',
@@ -4224,7 +4283,7 @@ row[column.name] === 'NaN'
 
             {/* AI ANALYST */}
 
-            <section className="panel ask-panel">
+            <section className="panel ask-panel" id="ask-your-data">
               <div className="panel-head">
                 <div>
                   <div className="eyebrow">Ask your data</div>
