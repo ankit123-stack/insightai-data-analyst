@@ -3284,7 +3284,7 @@ row[column.name] === 'NaN'
                     </div>
 
                     <div
-                      className="quality-item advanced-hover-card"
+                      className="quality-item"
                       style={{
                         padding: '16px',
                         border: '1px solid #e5e7fb',
@@ -3304,7 +3304,7 @@ row[column.name] === 'NaN'
                         {advancedInsights.top_2_products?.products?.length ? (
                           advancedInsights.top_2_products.products.map(
                             (product, index) => (
-                              <div key={`${product.product}-${index}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '8px 9px', border: '1px solid #eef0f6', borderRadius: '7px', background: '#fff' }}>
+                              <div className="advanced-hover-card" key={`${product.product}-${index}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', padding: '8px 9px', border: '1px solid #eef0f6', borderRadius: '7px', background: '#fff' }}>
                                 <span style={{ minWidth: 0, color: '#515a70', fontSize: '10px', overflowWrap: 'anywhere' }}>
                                   <b style={{ color: '#8c91a3', marginRight: '6px' }}>{index + 1}.</b>
                                   {product.product || 'Not available'}
@@ -3321,28 +3321,32 @@ row[column.name] === 'NaN'
                           <small style={{ color: '#737d93', fontSize: '10px' }}>Not available</small>
                         )}
                       </div>
-                      <b style={{ display: 'block', margin: '0 0 4px', color: '#343b50', fontSize: '12px' }}>
-                        Combined:{' '}
-                        {advancedInsights.top_2_products?.combined_sales ==
-                        null
-                          ? 'Not available'
-                          : `₹${formatNumber(
-                              advancedInsights.top_2_products.combined_sales
-                            )}`}
-                      </b>
-                      <small style={{ color: '#737d93', fontSize: '10px' }}>
-                        {advancedInsights.top_2_products
-                          ?.percentage_of_total_sales == null
-                          ? 'Share: Not available'
-                          : `${formatNumber(
-                              advancedInsights.top_2_products
-                                .percentage_of_total_sales
-                            )}% of total sales`}
-                      </small>
+                      <div className="advanced-hover-card">
+                        <b style={{ display: 'block', margin: '0 0 4px', color: '#343b50', fontSize: '12px' }}>
+                          Combined:{' '}
+                          {advancedInsights.top_2_products?.combined_sales ==
+                          null
+                            ? 'Not available'
+                            : `₹${formatNumber(
+                                advancedInsights.top_2_products.combined_sales
+                              )}`}
+                        </b>
+                      </div>
+                      <div className="advanced-hover-card">
+                        <small style={{ color: '#737d93', fontSize: '10px' }}>
+                          {advancedInsights.top_2_products
+                            ?.percentage_of_total_sales == null
+                            ? 'Share: Not available'
+                            : `${formatNumber(
+                                advancedInsights.top_2_products
+                                  .percentage_of_total_sales
+                              )}% of total sales`}
+                        </small>
+                      </div>
                     </div>
 
                     <div
-                      className="quality-item advanced-hover-card"
+                      className="quality-item"
                       style={{
                         padding: '16px',
                         border: '1px solid #e5e7fb',
@@ -3359,7 +3363,7 @@ row[column.name] === 'NaN'
                         </span>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '7px' }}>
-                        <div style={{ minWidth: 0, padding: '9px 7px', borderRadius: '7px', background: '#f3f6fb' }}>
+                        <div className="advanced-hover-card" style={{ minWidth: 0, padding: '9px 7px', borderRadius: '7px', background: '#f3f6fb' }}>
                           <small style={{ color: '#838ba0', fontSize: '9px', lineHeight: 1.4 }}>Total</small>
                           <b style={{ margin: '4px 0 0', color: '#343b50', fontSize: '13px', overflowWrap: 'anywhere' }}>
                             {advancedInsights.total_quantity == null
@@ -3367,7 +3371,7 @@ row[column.name] === 'NaN'
                               : formatNumber(advancedInsights.total_quantity)}
                           </b>
                         </div>
-                        <div style={{ minWidth: 0, padding: '9px 7px', borderRadius: '7px', background: '#f3f6fb' }}>
+                        <div className="advanced-hover-card" style={{ minWidth: 0, padding: '9px 7px', borderRadius: '7px', background: '#f3f6fb' }}>
                           <small style={{ color: '#838ba0', fontSize: '9px', lineHeight: 1.4 }}>Average</small>
                           <b style={{ margin: '4px 0 0', color: '#343b50', fontSize: '13px', overflowWrap: 'anywhere' }}>
                             {advancedInsights.average_quantity == null
@@ -3375,7 +3379,7 @@ row[column.name] === 'NaN'
                               : formatNumber(advancedInsights.average_quantity)}
                           </b>
                         </div>
-                        <div style={{ minWidth: 0, padding: '9px 7px', borderRadius: '7px', background: '#f3f6fb' }}>
+                        <div className="advanced-hover-card" style={{ minWidth: 0, padding: '9px 7px', borderRadius: '7px', background: '#f3f6fb' }}>
                           <small style={{ color: '#838ba0', fontSize: '9px', lineHeight: 1.4 }}>Highest</small>
                           <b style={{ margin: '4px 0 0', color: '#343b50', fontSize: '13px', overflowWrap: 'anywhere' }}>
                             {advancedInsights.highest_quantity == null
