@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   Upload,
   FileSpreadsheet,
@@ -641,6 +641,8 @@ export default function App() {
     useState('region')
   const [fileName, setFileName] = useState('')
   const [uploadedDatasets, setUploadedDatasets] = useState([])
+  const comparisonUploadInput = useRef(null)
+  const comparisonUploadTarget = useRef(null)
   const [selectedCompareDataset1, setSelectedCompareDataset1] =
     useState('')
   const [selectedCompareDataset2, setSelectedCompareDataset2] =
@@ -669,7 +671,7 @@ export default function App() {
   // UPLOAD CSV / EXCEL AND LOAD ANALYTICS
   // ------------------------------------------------
 
-  async function upload(file) {
+  async function upload(file, compareSelector) {
     if (!file) return
 
     const fileName = file.name.toLowerCase()
@@ -732,14 +734,6 @@ export default function App() {
         ),
         uploadedDataset
       ])
-      setSelectedCompareDataset1(
-        (selected) => selected || data.dataset_id
-      )
-      setSelectedCompareDataset2((selected) =>
-        uploadedDatasets.length < 2
-          ? data.dataset_id
-          : selected || data.dataset_id
-      )
 
       const normalizedProfile =
         normalizeProfileData(data)
@@ -887,6 +881,11 @@ export default function App() {
         chartResult.status ===
           'fulfilled'
       ) {
+        if (compareSelector === 'dataset1') {
+          setSelectedCompareDataset1(data.dataset_id)
+        } else if (compareSelector === 'dataset2') {
+          setSelectedCompareDataset2(data.dataset_id)
+        }
         setSuccess(
           'File uploaded and analysis completed successfully.'
         )
@@ -904,6 +903,10 @@ export default function App() {
     event.preventDefault()
     setComparisonError('')
     setComparison(null)
+    if (!selectedCompareDataset1 || !selectedCompareDataset2) {
+      setComparisonError('Please select a dataset for both Dataset 1 and Dataset 2.')
+      return
+    }
     setComparisonBusy(true)
 
     try {
@@ -4778,17 +4781,36 @@ row[column.name] === 'NaN'
                 marginBottom: '18px'
               }}
             >
+              <input
+                ref={comparisonUploadInput}
+                type="file"
+                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                style={{ display: 'none' }}
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  const compareSelector = comparisonUploadTarget.current
+                  comparisonUploadTarget.current = null
+                  event.target.value = ''
+                  if (file) upload(file, compareSelector)
+                }}
+              />
               <label style={{ display: 'grid', gap: '6px', flex: '1 1 180px' }}>
                 <span className="muted">Dataset 1</span>
                 <select
                   value={selectedCompareDataset1}
-                  onChange={(event) =>
-                    setSelectedCompareDataset1(event.target.value)
-                  }
-                  required
+                  onChange={(event) => {
+                    const value = event.target.value
+                    setComparisonError('')
+                    if (value === '__upload_new_file__') {
+                      comparisonUploadTarget.current = 'dataset1'
+                      comparisonUploadInput.current?.click()
+                    } else {
+                      setSelectedCompareDataset1(value)
+                    }
+                  }}
                   aria-label="Dataset 1"
                 >
-                  <option value="" disabled>
+                  <option value="">
                     Select a dataset
                   </option>
                   {uploadedDatasets.map((dataset) => (
@@ -4799,6 +4821,7 @@ row[column.name] === 'NaN'
                       {dataset.filename}
                     </option>
                   ))}
+                  <option value="__upload_new_file__">Upload new file</option>
                 </select>
               </label>
 
@@ -4806,13 +4829,19 @@ row[column.name] === 'NaN'
                 <span className="muted">Dataset 2</span>
                 <select
                   value={selectedCompareDataset2}
-                  onChange={(event) =>
-                    setSelectedCompareDataset2(event.target.value)
-                  }
-                  required
+                  onChange={(event) => {
+                    const value = event.target.value
+                    setComparisonError('')
+                    if (value === '__upload_new_file__') {
+                      comparisonUploadTarget.current = 'dataset2'
+                      comparisonUploadInput.current?.click()
+                    } else {
+                      setSelectedCompareDataset2(value)
+                    }
+                  }}
                   aria-label="Dataset 2"
                 >
-                  <option value="" disabled>
+                  <option value="">
                     Select a dataset
                   </option>
                   {uploadedDatasets.map((dataset) => (
@@ -4823,17 +4852,14 @@ row[column.name] === 'NaN'
                       {dataset.filename}
                     </option>
                   ))}
+                  <option value="__upload_new_file__">Upload new file</option>
                 </select>
               </label>
 
               <button
                 className="secondary-btn"
                 type="submit"
-                disabled={
-                  comparisonBusy ||
-                  !selectedCompareDataset1 ||
-                  !selectedCompareDataset2
-                }
+                disabled={comparisonBusy}
               >
                 {comparisonBusy ? 'Comparing…' : 'Compare Datasets'}
               </button>
