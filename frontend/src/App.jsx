@@ -3252,7 +3252,7 @@ row[column.name] === 'NaN'
                         </span>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px' }}>
-                        <div style={{ minWidth: 0, padding: '10px', border: '1px solid #d9f0e6', borderRadius: '8px', background: '#f5fcf8' }}>
+                        <div className="advanced-hover-card" style={{ minWidth: 0, padding: '10px', border: '1px solid #d9f0e6', borderRadius: '8px', background: '#f5fcf8' }}>
                           <span style={{ color: '#29976b', fontSize: '9px', fontWeight: 700, letterSpacing: '.6px' }}>BEST</span>
                           <b style={{ margin: '5px 0', color: '#343b50', fontSize: '13px', overflowWrap: 'anywhere' }}>
                             {advancedInsights.best_region?.region ||
@@ -3266,7 +3266,7 @@ row[column.name] === 'NaN'
                                 )}`}
                           </small>
                         </div>
-                        <div style={{ minWidth: 0, padding: '10px', border: '1px solid #f1e4ce', borderRadius: '8px', background: '#fffbf5' }}>
+                        <div className="advanced-hover-card" style={{ minWidth: 0, padding: '10px', border: '1px solid #f1e4ce', borderRadius: '8px', background: '#fffbf5' }}>
                           <span style={{ color: '#bd7a10', fontSize: '9px', fontWeight: 700, letterSpacing: '.6px' }}>LOWEST</span>
                           <b style={{ margin: '5px 0', color: '#343b50', fontSize: '13px', overflowWrap: 'anywhere' }}>
                             {advancedInsights.lowest_region?.region ||
