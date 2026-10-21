@@ -372,7 +372,9 @@ function Metric({
   detail,
   polished = false,
   qualityStatus,
-  hoverHighlight = false
+  hoverHighlight = false,
+  iconTarget,
+  onIconClick
 }) {
   const cardStyle = polished
     ? {
@@ -415,7 +417,19 @@ function Metric({
       className={`metric${hoverHighlight ? ' kpi-hover-card' : ''}`}
       style={cardStyle}
     >
-      <div className="metric-icon" style={iconStyle}>{icon}</div>
+      <a
+        className="metric-icon"
+        href={`#${iconTarget}`}
+        aria-label={`Go to ${label} section`}
+        onClick={onIconClick}
+        style={{
+          ...iconStyle,
+          cursor: 'pointer',
+          textDecoration: 'none'
+        }}
+      >
+        {icon}
+      </a>
       <small
         style={
           polished
@@ -2272,7 +2286,12 @@ export default function App() {
         }
       `}</style>
       <aside className="sidebar">
-        <div className="brand">
+        <a
+          className="brand"
+          href="#data-overview"
+          style={{ cursor: 'pointer', textDecoration: 'none' }}
+          onClick={() => setSelectedNavigation('Data overview')}
+        >
           <div className="logo">
             <Sparkles />
           </div>
@@ -2281,7 +2300,7 @@ export default function App() {
             <b>InsightAI</b>
             <small>DATA ANALYST</small>
           </div>
-        </div>
+        </a>
 
         <p className="nav-label">
           WORKSPACE
@@ -2504,9 +2523,14 @@ export default function App() {
             {/* FILE BANNER */}
 
             <div className="file-banner">
-              <div className="file-icon">
+              <a
+                className="file-icon"
+                href="#data-overview"
+                style={{ cursor: 'pointer', textDecoration: 'none' }}
+                onClick={() => setSelectedNavigation('Data overview')}
+              >
                 <FileSpreadsheet />
-              </div>
+              </a>
 
               <div className="file-details">
                 <b>{fileName}</b>
@@ -2563,6 +2587,8 @@ export default function App() {
                 label="Total rows"
                 polished
                 hoverHighlight
+                iconTarget="raw-data"
+                onIconClick={() => setSelectedNavigation('Data overview')}
                 value={formatNumber(
                   profile.rows
                 )}
@@ -2574,6 +2600,8 @@ export default function App() {
                 label="Total columns"
                 polished
                 hoverHighlight
+                iconTarget="data-quality"
+                onIconClick={() => setSelectedNavigation('Data overview')}
                 value={formatNumber(
                   profile.columns_count
                 )}
@@ -2589,6 +2617,8 @@ export default function App() {
                 label="Missing cells"
                 polished
                 hoverHighlight
+                iconTarget="data-quality"
+                onIconClick={() => setSelectedNavigation('Data overview')}
                 qualityStatus={
                   profile.missing_cells === 0
                     ? 'good'
@@ -2613,6 +2643,8 @@ export default function App() {
                 label="Duplicate rows"
                 polished
                 hoverHighlight
+                iconTarget="data-quality"
+                onIconClick={() => setSelectedNavigation('Data overview')}
                 qualityStatus={
                   profile.duplicate_rows === 0
                     ? 'good'
@@ -2950,7 +2982,7 @@ row[column.name] === 'NaN'
 
             {/* BUSINESS KPI CARDS */}
 
-            <section className="panel analytics-overview">
+            <section className="panel analytics-overview" id="business-performance">
               <div className="panel-head">
                 <div>
                   <div className="eyebrow">
@@ -2979,6 +3011,8 @@ row[column.name] === 'NaN'
                       label="Total Sales"
                       polished
                       hoverHighlight
+                      iconTarget="business-performance"
+                      onIconClick={() => setSelectedNavigation('Data overview')}
                       value={formatNumber(
                         kpis.total_sales
                       )}
@@ -2994,6 +3028,8 @@ row[column.name] === 'NaN'
                       }
                       label="Total Profit"
                       hoverHighlight
+                      iconTarget="business-performance"
+                      onIconClick={() => setSelectedNavigation('Data overview')}
                       value={formatNumber(
                         kpis.total_profit
                       )}
@@ -3010,6 +3046,8 @@ row[column.name] === 'NaN'
                       label="Average Sales"
                       polished
                       hoverHighlight
+                      iconTarget="business-performance"
+                      onIconClick={() => setSelectedNavigation('Data overview')}
                       value={formatNumber(
                         kpis.average_sales
                       )}
@@ -3026,6 +3064,8 @@ row[column.name] === 'NaN'
                       label="Average Quantity"
                       polished
                       hoverHighlight
+                      iconTarget="business-performance"
+                      onIconClick={() => setSelectedNavigation('Data overview')}
                       value={formatNumber(
                         kpis.average_quantity
                       )}
@@ -3040,6 +3080,8 @@ row[column.name] === 'NaN'
                     label="Profit Margin"
                     polished
                     hoverHighlight
+                    iconTarget="business-performance"
+                    onIconClick={() => setSelectedNavigation('Data overview')}
                     value={
                       business.profit_margin == null
                         ? '—%'
@@ -3065,7 +3107,7 @@ row[column.name] === 'NaN'
 
             {businessInsights.length >
               0 && (
-              <section className="panel business-insights">
+              <section className="panel business-insights" id="business-insights">
                 <div className="panel-head">
                   <div>
                     <div className="eyebrow">
@@ -3093,6 +3135,14 @@ row[column.name] === 'NaN'
                   }}
                 >
                   {businessInsights.map((insight, index) => {
+                    const iconTarget = {
+                      'Top-performing product': 'product-performance',
+                      'Product to review': 'product-performance',
+                      'Strongest region': 'region-performance',
+                      'Overall sales performance': 'business-performance',
+                      'Highest individual sale': 'raw-data',
+                      'Profit margin': 'business-performance'
+                    }[insight.title] || 'business-insights'
                     const tone =
                       insight.type === 'positive'
                         ? {
@@ -3134,8 +3184,11 @@ row[column.name] === 'NaN'
                           background: tone.background
                         }}
                       >
-                        <div
+                        <a
                           className="insight-icon"
+                          href={`#${iconTarget}`}
+                          aria-label={`Open ${insight.title} section`}
+                          onClick={() => setSelectedNavigation('Data overview')}
                           style={{
                             display: 'grid',
                             placeItems: 'center',
@@ -3144,11 +3197,13 @@ row[column.name] === 'NaN'
                             height: '36px',
                             borderRadius: '10px',
                             background: tone.iconBackground,
-                            color: tone.iconColor
+                            color: tone.iconColor,
+                            cursor: 'pointer',
+                            textDecoration: 'none'
                           }}
                         >
                           {insight.icon}
-                        </div>
+                        </a>
 
                         <div
                           style={{
@@ -3184,7 +3239,7 @@ row[column.name] === 'NaN'
                   })}
                 </div>
 
-                <div className="advanced-insights">
+                <div className="advanced-insights" id="advanced-insights">
                   <div className="eyebrow">ADVANCED INSIGHTS</div>
                   <div
                     className="quality-summary"
@@ -3206,9 +3261,9 @@ row[column.name] === 'NaN'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '13px' }}>
-                        <span style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#efefff', color: '#686bef' }}>
+                        <a href="#business-performance" aria-label="Open business performance" onClick={() => setSelectedNavigation('Data overview')} style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#efefff', color: '#686bef', cursor: 'pointer', textDecoration: 'none' }}>
                           <Trophy size={16} />
-                        </span>
+                        </a>
                         <span style={{ color: '#343b50', fontSize: '12px', fontWeight: 700 }}>
                           Top sales category
                         </span>
@@ -3244,9 +3299,9 @@ row[column.name] === 'NaN'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '13px' }}>
-                        <span style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#eaf8f1', color: '#29976b' }}>
+                        <a href="#region-performance" aria-label="Open regional performance" onClick={() => setSelectedNavigation('Data overview')} style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#eaf8f1', color: '#29976b', cursor: 'pointer', textDecoration: 'none' }}>
                           <TrendingUp size={16} />
-                        </span>
+                        </a>
                         <span style={{ color: '#343b50', fontSize: '12px', fontWeight: 700 }}>
                           Regional performance
                         </span>
@@ -3293,9 +3348,9 @@ row[column.name] === 'NaN'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '13px' }}>
-                        <span style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#f1edff', color: '#7559c8' }}>
+                        <a href="#product-performance" aria-label="Open product performance" onClick={() => setSelectedNavigation('Data overview')} style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#f1edff', color: '#7559c8', cursor: 'pointer', textDecoration: 'none' }}>
                           <Package size={16} />
-                        </span>
+                        </a>
                         <span style={{ color: '#343b50', fontSize: '12px', fontWeight: 700 }}>
                           Top 2 products
                         </span>
@@ -3355,9 +3410,9 @@ row[column.name] === 'NaN'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '13px' }}>
-                        <span style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#eaf4ff', color: '#4384bb' }}>
+                        <a href="#business-performance" aria-label="Open business performance" onClick={() => setSelectedNavigation('Data overview')} style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#eaf4ff', color: '#4384bb', cursor: 'pointer', textDecoration: 'none' }}>
                           <BarChart3 size={16} />
-                        </span>
+                        </a>
                         <span style={{ color: '#343b50', fontSize: '12px', fontWeight: 700 }}>
                           Quantity insights
                         </span>
@@ -3407,9 +3462,9 @@ row[column.name] === 'NaN'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '13px' }}>
-                        <span style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#efefff', color: '#686bef' }}>
+                        <a href="#data-quality" aria-label="Open data quality" onClick={() => setSelectedNavigation('Data overview')} style={{ display: 'grid', placeItems: 'center', width: '32px', height: '32px', borderRadius: '9px', background: '#efefff', color: '#686bef', cursor: 'pointer', textDecoration: 'none' }}>
                           <CheckCircle2 size={16} />
-                        </span>
+                        </a>
                         <span style={{ color: '#343b50', fontSize: '12px', fontWeight: 700 }}>
                           Data quality snapshot
                         </span>
@@ -3467,7 +3522,7 @@ row[column.name] === 'NaN'
 
             {recommendations.length >
               0 && (
-              <section className="panel recommendations">
+              <section className="panel recommendations" id="decision-support">
                 <div className="panel-head">
                   <div>
                     <div className="eyebrow">
@@ -3479,7 +3534,14 @@ row[column.name] === 'NaN'
                     </h3>
                   </div>
 
-                  <Lightbulb className="purple" />
+                  <a
+                    href="#decision-support"
+                    aria-label="Open decision support"
+                    style={{ cursor: 'pointer', color: 'inherit' }}
+                    onClick={() => setSelectedNavigation('Data overview')}
+                  >
+                    <Lightbulb className="purple" />
+                  </a>
                 </div>
 
                 <div
@@ -3528,11 +3590,18 @@ row[column.name] === 'NaN'
                         >
                           {String(index + 1).padStart(2, '0')}
                         </span>
-                        <CheckCircle2
-                          size={14}
-                          aria-hidden="true"
-                          style={{ color: '#8b8ef0' }}
-                        />
+                        <a
+                          href="#decision-support"
+                          aria-label="Open decision support"
+                          style={{ cursor: 'pointer', color: 'inherit' }}
+                          onClick={() => setSelectedNavigation('Data overview')}
+                        >
+                          <CheckCircle2
+                            size={14}
+                            aria-hidden="true"
+                            style={{ color: '#8b8ef0' }}
+                          />
+                        </a>
                       </div>
 
                       <p
@@ -3557,7 +3626,7 @@ row[column.name] === 'NaN'
 
             {business.product_performance
               ?.length > 0 && (
-              <section className="panel">
+              <section className="panel" id="product-performance">
                 <div className="panel-head">
                   <div>
                     <div className="eyebrow">
@@ -3569,7 +3638,14 @@ row[column.name] === 'NaN'
                     </h3>
                   </div>
 
-                  <Package />
+                  <a
+                    href="#product-performance"
+                    aria-label="Open product performance"
+                    style={{ cursor: 'pointer', color: 'inherit' }}
+                    onClick={() => setSelectedNavigation('Data overview')}
+                  >
+                    <Package />
+                  </a>
                 </div>
 
                 <div className="chart">
@@ -3646,7 +3722,7 @@ row[column.name] === 'NaN'
 
             {business.region_performance
               ?.length > 0 && (
-              <section className="panel">
+              <section className="panel" id="region-performance">
                 <div className="panel-head">
                   <div>
                     <div className="eyebrow">
@@ -3658,7 +3734,14 @@ row[column.name] === 'NaN'
                     </h3>
                   </div>
 
-                  <TrendingUp />
+                  <a
+                    href="#region-performance"
+                    aria-label="Open regional performance"
+                    style={{ cursor: 'pointer', color: 'inherit' }}
+                    onClick={() => setSelectedNavigation('Data overview')}
+                  >
+                    <TrendingUp />
+                  </a>
                 </div>
 
                 <div className="chart">
@@ -3744,6 +3827,7 @@ row[column.name] === 'NaN'
 
                 <div
                   className="panel"
+                  id="chart-controls"
                   style={{
                     padding: '20px',
                     border: '1px solid #e6e8f3',
@@ -3753,7 +3837,10 @@ row[column.name] === 'NaN'
                 >
                   <div className="panel-head">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span
+                      <a
+                        href="#chart-controls"
+                        aria-label="Open chart controls"
+                        onClick={() => setSelectedNavigation('Data overview')}
                         style={{
                           display: 'grid',
                           placeItems: 'center',
@@ -3762,11 +3849,13 @@ row[column.name] === 'NaN'
                           flex: '0 0 38px',
                           borderRadius: '11px',
                           background: '#efefff',
-                          color: '#686bef'
+                          color: '#686bef',
+                          cursor: 'pointer',
+                          textDecoration: 'none'
                         }}
                       >
                         <BarChart3 size={18} />
-                      </span>
+                      </a>
                       <div>
                         <div className="eyebrow">CHART CONTROLS</div>
                         <h3>Customize your view</h3>
@@ -4191,7 +4280,7 @@ row[column.name] === 'NaN'
               analytics?.numeric_summary ||
                 {}
             ).length > 0 && (
-              <section className="panel">
+              <section className="panel" id="numeric-summary">
                 <div className="panel-head">
                   <div>
                     <div className="eyebrow">
@@ -4204,7 +4293,14 @@ row[column.name] === 'NaN'
                     </h3>
                   </div>
 
-                  <BarChart3 />
+                  <a
+                    href="#numeric-summary"
+                    aria-label="Open numeric summary"
+                    style={{ cursor: 'pointer', color: 'inherit' }}
+                    onClick={() => setSelectedNavigation('Data overview')}
+                  >
+                    <BarChart3 />
+                  </a>
                 </div>
 
                 <div className="table-wrap">
@@ -4299,9 +4395,15 @@ row[column.name] === 'NaN'
                   </p>
                 </div>
 
-                <div className="ask-icon">
+                <a
+                  className="ask-icon"
+                  href="#ask-your-data"
+                  aria-label="Open Ask your data"
+                  style={{ cursor: 'pointer', textDecoration: 'none' }}
+                  onClick={() => setSelectedNavigation('Ask your data')}
+                >
                   <Sparkles />
-                </div>
+                </a>
               </div>
 
               <div className="suggestions">
@@ -4411,7 +4513,7 @@ row[column.name] === 'NaN'
 
             {/* DATA PREVIEW */}
 
-            <section className="panel">
+            <section className="panel" id="raw-data">
               <div className="panel-head">
                 <div>
                   <div className="eyebrow">
@@ -4430,7 +4532,14 @@ row[column.name] === 'NaN'
                   </p>
                 </div>
 
-                <Table2 />
+                <a
+                  href="#raw-data"
+                  aria-label="Open raw data"
+                  style={{ cursor: 'pointer', color: 'inherit' }}
+                  onClick={() => setSelectedNavigation('Data overview')}
+                >
+                  <Table2 />
+                </a>
               </div>
 
               {profile.preview?.length >
@@ -4508,7 +4617,7 @@ row[column.name] === 'NaN'
 
             {/* DATA QUALITY */}
 
-            <section className="panel">
+            <section className="panel" id="data-quality">
               <div className="panel-head">
                 <div>
                   <div className="eyebrow">
@@ -4526,7 +4635,14 @@ row[column.name] === 'NaN'
                   </p>
                 </div>
 
-                <Database />
+                <a
+                  href="#data-quality"
+                  aria-label="Open data quality"
+                  style={{ cursor: 'pointer', color: 'inherit' }}
+                  onClick={() => setSelectedNavigation('Data overview')}
+                >
+                  <Database />
+                </a>
               </div>
 
               {profile.columns?.length >
@@ -4642,7 +4758,14 @@ row[column.name] === 'NaN'
                   this session.
                 </p>
               </div>
-              <Rows3 className="purple" />
+              <a
+                href="#data-comparison"
+                aria-label="Open data comparison"
+                style={{ cursor: 'pointer', color: 'inherit' }}
+                onClick={() => setSelectedNavigation('Data Comparison')}
+              >
+                <Rows3 className="purple" />
+              </a>
             </div>
 
             <form
